@@ -21,27 +21,56 @@ typedef struct process {
 void clearResources(int);
 process* CreateProcesses(const char* fileName);
 
-int main(int argc, char * argv[])
-{
-    signal(SIGINT, clearResources);
-    // TODO Initialization
-    // 1. Read the input files.
-    process* processes = CreateProcesses("processes.txt");
-    // 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
-    // 3. Initiate and create the scheduler and clock processes.
-    // 4. Use this function after creating the clock process to initialize clock
-    ///initClk();
-    // To get time use this
-    ///int x = getClk();
-    ///printf("current time is %d\n", x);
-    // TODO Generation Main Loop
-    // 5. Create a data structure for processes and provide it with its parameters.
-    // 6. Send the information to the scheduler at the appropriate time.
-    // 7. Clear clock resources
-    ///destroyClk(true);
+int main(int argc, char * argv[]) {
+	process* processes;
+	int schedOption;
+	int quantum;
 
-    free(processes);
-    return(EXIT_SUCCESS);
+	signal(SIGINT, clearResources);
+	// TODO Initialization
+	// 1. Read the input files.
+	processes = CreateProcesses("processes.txt");
+	// 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
+	printf("please enter the scheduling algorithm:\n");
+	printf("0: Non-preemptive Highest Priority First (NHPF)\n");
+	printf("1: shortest remaining time next (SRTN)\n");
+	printf("2: Round robin (RR)\n");
+
+	if ((schedOption = fgetc(stdin)) == EOF)
+	{
+		fprintf(stderr, "error when reading sched option\n");
+		exit(EXIT_FAILURE);
+	}
+	fgetc(stdin); // take the newline out of the stdin
+
+	
+	if (schedOption == '2')
+	{
+		printf("please enter the quantum\n");
+
+		char value[100];
+		if(fgets(value, 100, stdin) == NULL)
+		{
+			fprintf(stderr, "error when reading quantum option\n");
+			exit(EXIT_FAILURE);
+		}
+
+		quantum = atoi(value);
+	}
+	// 3. Initiate and create the scheduler and clock processes.
+	// 4. Use this function after creating the clock process to initialize clock
+	///initClk();
+	// To get time use this
+	///int x = getClk();
+	///printf("current time is %d\n", x);
+	// TODO Generation Main Loop
+	// 5. Create a data structure for processes and provide it with its parameters.
+	// 6. Send the information to the scheduler at the appropriate time.
+	// 7. Clear clock resources
+	///destroyClk(true);
+
+	free(processes);
+	return EXIT_SUCCESS;
 }
 
 void clearResources(int signum)
@@ -49,6 +78,12 @@ void clearResources(int signum)
     //TODO Clears all resources in case of interruption
 }
 
+/**
+ * @brief Create a Processes object after parsing the processes file
+ * 
+ * @param fileName the name of the processes file
+ * @return process* array of processes
+ */
 process* CreateProcesses(const char* fileName)
 {
 	char* number = NULL;
