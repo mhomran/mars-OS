@@ -19,17 +19,18 @@ typedef struct process {
 
 
 void clearResources(int);
-process* CreateProcesses(const char* fileName);
+process* CreateProcesses(const char* fileName, int* numberOfProcesses);
 
 int main(int argc, char * argv[]) {
 	process* processes;
+	int numberOfProcesses;
 	int schedOption;
 	int quantum;
 
 	signal(SIGINT, clearResources);
 	// TODO Initialization
 	// 1. Read the input files.
-	processes = CreateProcesses("processes.txt");
+	processes = CreateProcesses("processes.txt", &numberOfProcesses);
 	// 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
 	printf("please enter the scheduling algorithm:\n");
 	printf("0: Non-preemptive Highest Priority First (NHPF)\n");
@@ -58,17 +59,30 @@ int main(int argc, char * argv[]) {
 		quantum = atoi(value);
 	}
 	// 3. Initiate and create the scheduler and clock processes.
+	if (fork() == 0) {
+		free(processes);
+
+		execl("scheduler.out", "scheduler.out", NULL);
+	}
+	if (fork() == 0) {
+		free(processes);
+
+		execl("clk.out", "clk.out", NULL);
+	}
 	// 4. Use this function after creating the clock process to initialize clock
-	///initClk();
+	initClk();
 	// To get time use this
-	///int x = getClk();
-	///printf("current time is %d\n", x);
+	int x = getClk();
+	printf("current time is %d\n", x);
+
 	// TODO Generation Main Loop
 	// 5. Create a data structure for processes and provide it with its parameters.
+	while (1) {
 	// 6. Send the information to the scheduler at the appropriate time.
+	}
 	// 7. Clear clock resources
-	///destroyClk(true);
-
+	destroyClk(true);
+	
 	free(processes);
 	return EXIT_SUCCESS;
 }
@@ -79,12 +93,13 @@ void clearResources(int signum)
 }
 
 /**
- * @brief Create a Processes object after parsing the processes file
+ * @brief Create a Processes objects array after parsing the processes file.
  * 
  * @param fileName the name of the processes file
+ * @param numberOfProcesses the number of processes in the array.
  * @return process* array of processes
  */
-process* CreateProcesses(const char* fileName)
+process* CreateProcesses(const char* fileName, int* numberOfProcesses)
 {
 	char* number = NULL;
 	int numberSize = 0;
@@ -143,5 +158,6 @@ process* CreateProcesses(const char* fileName)
 	
 	fclose(fp);
 
+	*numberOfProcesses = processesNo;
 	return processes;
 }
