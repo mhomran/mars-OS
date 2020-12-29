@@ -1,27 +1,112 @@
+/**
+ * @file process_generator.c
+ * @author Mohamed Hassanin
+ * @brief Create processes objects and initialize scheduler and clock processes.
+ * @version 0.1
+ * @date 2020-12-29 
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
 #include "headers.h"
 
+typedef struct process {
+	int id;
+	int arrivalTime;
+	int runTime;
+	int priority;
+} process;
+
+
 void clearResources(int);
+process* CreateProcesses(const char* fileName);
 
 int main(int argc, char * argv[])
 {
     signal(SIGINT, clearResources);
     // TODO Initialization
     // 1. Read the input files.
+    process* processes = CreateProcesses("processes.txt");
     // 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
     // 3. Initiate and create the scheduler and clock processes.
     // 4. Use this function after creating the clock process to initialize clock
-    initClk();
+    ///initClk();
     // To get time use this
-    int x = getClk();
-    printf("current time is %d\n", x);
+    ///int x = getClk();
+    ///printf("current time is %d\n", x);
     // TODO Generation Main Loop
     // 5. Create a data structure for processes and provide it with its parameters.
     // 6. Send the information to the scheduler at the appropriate time.
     // 7. Clear clock resources
-    destroyClk(true);
+    ///destroyClk(true);
+
+    free(processes);
+    return(EXIT_SUCCESS);
 }
 
 void clearResources(int signum)
 {
     //TODO Clears all resources in case of interruption
+}
+
+process* CreateProcesses(const char* fileName)
+{
+	char* number = NULL;
+	int numberSize = 0;
+
+	char * line = NULL;
+	size_t len = 0;
+	ssize_t lineLength;
+
+	FILE* fp;
+
+	size_t processesNo = 0;
+	process* processes = NULL;
+
+	fp = fopen(fileName, "r"); 
+
+	if (fp == NULL) {
+		perror("Error while opening the file.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	
+	while ((lineLength = getline(&line, &len, fp)) != -1) {
+		int chIndex = 0;
+		if (line[chIndex] == '#') continue;
+		
+		int numbers[4];
+		for(int member = 0; member < 4; member++) {
+			while(line[chIndex] != '\t' && line[chIndex] != '\n') {
+				numberSize++;
+				number = (char*)realloc(number, numberSize);
+				number[numberSize-1] = line[chIndex];
+				
+				chIndex++;
+			}
+			chIndex++;
+
+			#ifdef DEBUG
+			printf("%d\t", atoi(number));
+			#endif
+			numbers[member] = atoi(number);
+			numberSize = 0;
+			free(number);
+			number = NULL;	
+		}
+		#ifdef DEBUG
+		printf("\n");
+		#endif
+		processesNo++;
+		processes = (process*)realloc(processes, sizeof(process) * processesNo);
+		processes[processesNo - 1].id = numbers[0];
+		processes[processesNo - 1].arrivalTime = numbers[1];
+		processes[processesNo - 1].runTime = numbers[2];
+		processes[processesNo - 1].priority = numbers[3];
+	}
+	free(line);
+	
+	fclose(fp);
+
+	return processes;
 }
