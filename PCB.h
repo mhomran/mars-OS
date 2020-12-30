@@ -7,13 +7,20 @@
  * @date 2020-12-30
  */
 
-typedef struct PCB
+#ifndef PCB_
+#define PCB_
+
+typedef enum {READY, PAUSED, BLOCKED, FINISHED} STATE;
+
+typedef struct 
 {
     int pid;                // Process ID
     int arrivalTime;        // Process arrival time in the read queue
     int runTime;            // Estimated running time
     int priority;           // Priority. 0 is the heighest priority
     int remainingTime;      // Remaining time to finish
-    int state;              // 1: running, 0: stopped
+    STATE state;            
     int waitingTime;        // Total time from creation to first run
-};
+} PCB;
+
+#endif
