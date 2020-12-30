@@ -15,6 +15,7 @@
 
 key_t msgqid;
 struct Queue* rq;
+PCB* running;
 
 struct msgbuff
 {
@@ -40,16 +41,32 @@ void ReadProcess(int signum);
  * @param entry process object
  */
 void CreateEntry(process_t entry);
+/**
+ * @brief Schedule the processes using Non-preemptive Highest Priority First 
+ * 
+ */
+void HPFSheduler();
+/**
+ * @brief Schedule the processes using Shortest Remaining time Next
+ * 
+ */
+void SRTNSheduler();
+/**
+ * @brief Schedule the processes using Round Robin
+ * 
+ */
+void RRSheduler();
 
 int main(int argc, char * argv[])
 {
     initClk();
 
-    if(argc < 2){
-        perror("\n\nScheduler: Couldn't find number of processes\n");
+    if(argc < 3){
+        perror("\n\nScheduler: Not enough argument\n");
         exit(-1);
     }
-    int nproc = atoi(argv[1]);
+    int schedulerType = atoi(argv[1]);
+    int nproc = atoi(argv[2]);
 
     msgqid = msgget(MSGQKEY, 0644);
     if(msgqid == -1){
@@ -59,17 +76,21 @@ int main(int argc, char * argv[])
 
     signal(SIGMSGQ, ReadProcess);
     rq = createQueue(RQSZ);
+    running = NULL;
 
     while(nproc){
         // If the ready queue is empty, and still there are processes, wait 
-        while(isEmpty(rq)) ReadMSGQ(1);
+        while(nproc && isEmpty(rq));
 
         while(!isEmpty(rq)){
-            PCB* entry = dequeue(rq);
-            if(entry->state = READY){ // Start a new process. (Fork it and give it its parameters.)
-                if(fork() == 0){
-                    execl("process.out", "process.out", entry->pid, entry->arrivalTime, entry->runTime, entry->priority, NULL);
-                }
+            switch (schedulerType)
+            {
+            case 1: HPFSheduler();
+                break;
+            case 2: SRTNSheduler();
+                break;
+            default: RRSheduler();
+                break;
             }
         }
     }
@@ -109,3 +130,16 @@ void CreateEntry(process_t proc){
     enqueue(rq, entry);
 }
 
+void HPFSheduler(){
+    if(running) enqueue(rq, running);
+    running = dequeue(rq);
+    if(running->state = READY){ // Start a new process. (Fork it and give it its parameters.)
+        if(fork() == 0){
+            execl("process.out", "process.out", running->pid, running->arrivalTime, running->runTime, running->priority, NULL);
+        }
+    }
+    else if(running->state == FINISHED) {
+        // Release the PCB resources
+        free(running);
+    }
+}
