@@ -95,7 +95,6 @@ int main(int argc, char * argv[])
         }
     }
 
-
     // upon termination release the clock resources.
     destroyClk(true);
 }
@@ -133,7 +132,7 @@ void CreateEntry(process_t proc){
 void HPFSheduler(){
     if(running) enqueue(rq, running);
     running = dequeue(rq);
-    if(running->state = READY){ // Start a new process. (Fork it and give it its parameters.)
+    if(running->state == READY){ // Start a new process. (Fork it and give it its parameters.)
         if(fork() == 0){
             execl("process.out", "process.out", running->pid, running->arrivalTime, running->runTime, running->priority, NULL);
         }
