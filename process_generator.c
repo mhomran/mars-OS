@@ -23,6 +23,7 @@ struct msgbuff {
 
 void clearResources(int);
 process_t* CreateProcesses(const char* fileName, int* numberOfProcesses);
+char* myItoa(int number);
 
 process_t* processes = NULL;
 
@@ -39,9 +40,9 @@ int main(int argc, char * argv[]) {
 	processes = CreateProcesses("processes.txt", &numberOfProcesses);
 	// 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
 	printf("please enter the scheduling algorithm:\n");
-	printf("0: Non-preemptive Highest Priority First (NHPF)\n");
-	printf("1: shortest remaining time next (SRTN)\n");
-	printf("2: Round robin (RR)\n");
+	printf("0: shortest remaining time next (SRTN)\n");
+	printf("1: Round robin (RR)\n");
+	printf("2: Non-preemptive Highest Priority First (NHPF)\n");
 
 	if ((schedOption = fgetc(stdin)) == EOF)
 	{
@@ -50,8 +51,9 @@ int main(int argc, char * argv[]) {
 	}
 	fgetc(stdin); // take the newline out of the stdin
 
-	
-	if (schedOption == '2')
+	schedOption -= '0';
+
+	if (schedOption == 1)
 	{
 		printf("processe generator: please enter the quantum\n");
 
@@ -70,16 +72,16 @@ int main(int argc, char * argv[]) {
 		exit(EXIT_FAILURE);
     	}
 	
-	/*
+
 	if ((schedPid = fork()) == 0) {
 		free(processes);
 
-		if (execl("build/scheduler.out", "scheduler.out", NULL)) {
+		if (execl("build/scheduler.out", "scheduler.out", myItoa(schedOption), myItoa(numberOfProcesses), NULL)) {
 			perror("process_generator: couldn't run scheduler.out\n");
 			exit(EXIT_FAILURE);
 		}
 	}
-	*/
+	
 	if (fork() == 0) {
 		free(processes);
 
@@ -128,7 +130,7 @@ int main(int argc, char * argv[]) {
 			}
 		}
 
-		//if (notifySched == 1) kill(schedPid, SIGMSGQ);
+		if (notifySched == 1) kill(schedPid, SIGMSGQ);
 		if (exitFlag == 1) break;
 	}
 	// 7. Clear clock resources
@@ -218,4 +220,32 @@ process_t* CreateProcesses(const char* fileName, int* numberOfProcesses)
 
 	*numberOfProcesses = processesNo;
 	return processes;
+}
+
+char* myItoa(int number)
+{
+	uint8_t ch;
+	int numberSize = 0;
+	char* numberStr = NULL;
+	if(number != 0) {
+		while((ch = number % 10)) {
+			number /= 10;
+
+			numberSize++;
+			numberStr = (char*)realloc(numberStr, numberSize);
+			numberStr[numberSize-1] = ch + '0';
+		}
+	}
+	else {
+		numberSize++;
+		numberStr = (char*)realloc(numberStr, numberSize);
+		numberStr[numberSize-1] = '0';		
+	}
+
+	//null terminate the string 
+	numberSize++;
+	numberStr = (char*)realloc(numberStr, numberSize);
+	numberStr[numberSize-1] = '\0';
+	
+	return numberStr;
 }

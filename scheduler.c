@@ -60,8 +60,8 @@ void RRSheduler();
 int main(int argc, char * argv[])
 {
     initClk();
-
-    if(argc < 3){
+    
+    if(argc < 3) {
         perror("\n\nScheduler: Not enough argument\n");
         exit(-1);
     }
@@ -85,9 +85,9 @@ int main(int argc, char * argv[])
         while(!isEmpty(rq)){
             switch (schedulerType)
             {
-            case 1: SRTNSheduler();
+            case 0: SRTNSheduler();
                 break;
-            case 2: RRSheduler();
+            case 1: RRSheduler();
                 break;
             default: HPFSheduler();
                 break;
@@ -141,4 +141,14 @@ void HPFSheduler(){
         // Release the PCB resources
         free(running);
     }
+}
+
+void SRTNSheduler() 
+{
+	//STUB
+}
+
+void RRSheduler() 
+{
+	//STUB
 }
