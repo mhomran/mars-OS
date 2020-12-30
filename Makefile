@@ -1,14 +1,27 @@
-build:
-	gcc process_generator.c -o process_generator.out
-	gcc clk.c -o clk.out
-	gcc scheduler.c -o scheduler.out
-	gcc process.c -o process.out
-	gcc test_generator.c -o test_generator.out
+BUILD_DIR = build
+CC = gcc
 
+CFLAGS ?= -g -Wall
+SRCS := $(shell find . -name "*.c")
+OBJS := $(SRCS:.c=.out)
+
+.PHONY: all
+all: $(OBJS)
+
+%.out: %.c
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) $< -o $(BUILD_DIR)/$@
+
+
+.PHONY: clean
 clean:
-	rm -f *.out  processes.txt
+	rm -f -r $(BUILD_DIR) 
 
-all: clean build
+.PHONY: run
+run:	
+	./$(BUILD_DIR)/process_generator.out
 
-run:
-	./process_generator.out
+.PHONY: generate_test
+generate_test:
+	./$(BUILD_DIR)/test_generator.out
+

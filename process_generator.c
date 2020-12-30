@@ -6,23 +6,18 @@
  * @date 2020-12-29 
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include "headers.h"
+#include <stdio.h>			 
+#include <stdlib.h>			
+#include "headers.h"			/**< for dealing with clk module */
+#include "process_generator.h"		/**< for process_t */
 
-typedef struct process {
-	int id;
-	int arrivalTime;
-	int runTime;
-	int priority;
-} process;
 
 
 void clearResources(int);
-process* CreateProcesses(const char* fileName, int* numberOfProcesses);
+process_t* CreateProcesses(const char* fileName, int* numberOfProcesses);
 
 int main(int argc, char * argv[]) {
-	process* processes;
+	process_t* processes;
 	int numberOfProcesses;
 	int schedOption;
 	int quantum;
@@ -99,7 +94,7 @@ void clearResources(int signum)
  * @param numberOfProcesses the number of processes in the array.
  * @return process* array of processes
  */
-process* CreateProcesses(const char* fileName, int* numberOfProcesses)
+process_t* CreateProcesses(const char* fileName, int* numberOfProcesses)
 {
 	char* number = NULL;
 	int numberSize = 0;
@@ -111,7 +106,7 @@ process* CreateProcesses(const char* fileName, int* numberOfProcesses)
 	FILE* fp;
 
 	size_t processesNo = 0;
-	process* processes = NULL;
+	process_t* processes = NULL;
 
 	fp = fopen(fileName, "r"); 
 
@@ -148,7 +143,7 @@ process* CreateProcesses(const char* fileName, int* numberOfProcesses)
 		printf("\n");
 		#endif
 		processesNo++;
-		processes = (process*)realloc(processes, sizeof(process) * processesNo);
+		processes = (process_t*)realloc(processes, sizeof(process_t) * processesNo);
 		processes[processesNo - 1].id = numbers[0];
 		processes[processesNo - 1].arrivalTime = numbers[1];
 		processes[processesNo - 1].runTime = numbers[2];
