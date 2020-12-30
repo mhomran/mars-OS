@@ -33,7 +33,7 @@ int getClk()
 
 /*
  * All process call this function at the beginning to establish communication between them and the clock module.
- * Again, remember that the clock is only emulation!
+ * Again, remember that the cl[ock is only emulation!
 */
 void initClk()
 {
