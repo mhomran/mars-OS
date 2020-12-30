@@ -24,11 +24,14 @@ struct msgbuff {
 void clearResources(int);
 process_t* CreateProcesses(const char* fileName, int* numberOfProcesses);
 
+process_t* processes = NULL;
+
 int main(int argc, char * argv[]) {
-	process_t* processes;
 	int numberOfProcesses;
 	int schedOption;
 	int quantum;
+
+	pid_t schedPid;
 
 	signal(SIGINT, clearResources);
 	// TODO Initialization
@@ -43,7 +46,7 @@ int main(int argc, char * argv[]) {
 	if ((schedOption = fgetc(stdin)) == EOF)
 	{
 		fprintf(stderr, "processe generator: error when reading sched option\n");
-		clearResources(SIGINT);
+		exit(EXIT_FAILURE);
 	}
 	fgetc(stdin); // take the newline out of the stdin
 
@@ -55,7 +58,7 @@ int main(int argc, char * argv[]) {
 		char value[100];
 		if(fgets(value, 100, stdin) == NULL) {
 			fprintf(stderr, "processe generator: error when reading quantum option\n");
-			clearResources(SIGINT);
+			exit(EXIT_FAILURE);
 		}
 
 		quantum = atoi(value);
@@ -64,13 +67,16 @@ int main(int argc, char * argv[]) {
 	msgqid = msgget(MSGQKEY, 0644 | IPC_CREAT);
     	if (msgqid == -1) {
         	perror("processe generator: Failed to get the message queue\n");
-		clearResources(SIGINT);
+		exit(EXIT_FAILURE);
     	}
 	
-	if (fork() == 0) {
+	if ((schedPid = fork()) == 0) {
 		free(processes);
 
-		execl("build/scheduler.out", "scheduler.out", NULL);
+		if (execl("build/scheduler.out", "scheduler.out", NULL)) {
+			perror("process_generator: couldn't run scheduler.out\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 	
 	if (fork() == 0) {
@@ -78,7 +84,7 @@ int main(int argc, char * argv[]) {
 
 		if (execl("build/clk.out", "clk.out", NULL) == -1) {
 			perror("process_generator: couldn't run clk.out\n");
-			clearResources(SIGINT);
+			exit(EXIT_FAILURE);
 		}
 		
 	}
@@ -96,15 +102,20 @@ int main(int argc, char * argv[]) {
 
 		// 6. Send the information to the scheduler at the appropriate time.
 		uint8_t exitFlag = 1;
+		uint8_t notifySched = 0;
 		for(int i = 0; i < numberOfProcesses; i++) {
 			if (processes[i].arrived == 0) {
 				exitFlag = 0;
 				if (processes[i].arrivalTime <= curTime) {
 					processes[i].arrived = 1;
+
 					struct msgbuff message;
 					message.mtype = 1;
 					message.proc = processes[i];
 					msgsnd(msgqid, &message, sizeof(process_t), 0);
+					
+					notifySched = 1;
+
 					#ifdef DEBUG
 					printf("process %d arrived at %d\n", processes[i].id, curTime);
 					#endif
@@ -112,6 +123,7 @@ int main(int argc, char * argv[]) {
 			}
 		}
 
+		if (notifySched == 1) kill(schedPid, SIGMSGQ);
 		if (exitFlag == 1) break;
 	}
 	// 7. Clear clock resources
@@ -122,8 +134,10 @@ int main(int argc, char * argv[]) {
 void clearResources(int signum)
 {
 	//TODO Clears all resources in case of interruption
+	if (processes != NULL) free(processes);
 	destroyClk(true);
     	msgctl(msgqid, IPC_RMID, (struct msqid_ds*) NULL);
+
 	exit(EXIT_SUCCESS);
 }
 
