@@ -62,13 +62,12 @@ int main(int argc, char * argv[])
 
     while(nproc){
         // If the ready queue is empty, and still there are processes, wait 
-        if(isEmpty(rq)) ReadMSGQ(1);
+        while(isEmpty(rq)) ReadMSGQ(1);
 
         while(!isEmpty(rq)){
             PCB* entry = dequeue(rq);
             if(entry->state = READY){ // Start a new process. (Fork it and give it its parameters.)
                 if(fork() == 0){
-                    
                     execl("process.out", "process.out", entry->pid, entry->arrivalTime, entry->runTime, entry->priority, NULL);
                 }
             }
@@ -76,7 +75,7 @@ int main(int argc, char * argv[])
     }
 
 
-    //upon termination release the clock resources.
+    // upon termination release the clock resources.
     destroyClk(true);
 }
 
