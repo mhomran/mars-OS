@@ -57,6 +57,8 @@ void SRTNSheduler();
  */
 void RRSheduler();
 
+char* myItoa(int number);
+
 int main(int argc, char * argv[])
 {
     initClk();
@@ -134,13 +136,52 @@ void HPFSheduler(){
     running = dequeue(rq);
     if(running->state == READY){ // Start a new process. (Fork it and give it its parameters.)
         if(fork() == 0){
-            execl("process.out", "process.out", running->pid, running->arrivalTime, running->runTime, running->priority, NULL);
+		int rt = execl("build/process.out", "process.out", myItoa(running->pid), 
+		myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
+		if (rt == -1) {
+			perror("scheduler: couldn't run scheduler.out\n");
+			exit(EXIT_FAILURE);
+	    	}
         }
     }
     else if(running->state == FINISHED) {
         // Release the PCB resources
         free(running);
     }
+}
+
+/**
+ * @brief convert an integer to a null terminated string.
+ * 
+ * @param number the number to convert.
+ * @return char* a pointer to the converted string.
+ */
+char* myItoa(int number)
+{
+	uint8_t ch;
+	int numberSize = 0;
+	char* numberStr = NULL;
+	if(number != 0) {
+		while((ch = number % 10)) {
+			number /= 10;
+
+			numberSize++;
+			numberStr = (char*)realloc(numberStr, numberSize);
+			numberStr[numberSize-1] = ch + '0';
+		}
+	}
+	else {
+		numberSize++;
+		numberStr = (char*)realloc(numberStr, numberSize);
+		numberStr[numberSize-1] = '0';		
+	}
+
+	//null terminate the string 
+	numberSize++;
+	numberStr = (char*)realloc(numberStr, numberSize);
+	numberStr[numberSize-1] = '\0';
+	
+	return numberStr;
 }
 
 void SRTNSheduler() 

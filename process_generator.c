@@ -76,7 +76,7 @@ int main(int argc, char * argv[]) {
 	if ((schedPid = fork()) == 0) {
 		free(processes);
 
-		if (execl("build/scheduler.out", "scheduler.out", myItoa(schedOption), myItoa(numberOfProcesses), NULL)) {
+		if (execl("build/scheduler.out", "scheduler.out", myItoa(schedOption), myItoa(numberOfProcesses), NULL) == -1) {
 			perror("process_generator: couldn't run scheduler.out\n");
 			exit(EXIT_FAILURE);
 		}
@@ -222,6 +222,12 @@ process_t* CreateProcesses(const char* fileName, int* numberOfProcesses)
 	return processes;
 }
 
+/**
+ * @brief convert an integer to a null terminated string.
+ * 
+ * @param number the number to convert.
+ * @return char* a pointer to the converted string.
+ */
 char* myItoa(int number)
 {
 	uint8_t ch;
