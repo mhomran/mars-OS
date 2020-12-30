@@ -70,6 +70,7 @@ int main(int argc, char * argv[]) {
 		exit(EXIT_FAILURE);
     	}
 	
+	/*
 	if ((schedPid = fork()) == 0) {
 		free(processes);
 
@@ -78,7 +79,7 @@ int main(int argc, char * argv[]) {
 			exit(EXIT_FAILURE);
 		}
 	}
-	
+	*/
 	if (fork() == 0) {
 		free(processes);
 
@@ -127,18 +128,17 @@ int main(int argc, char * argv[]) {
 			}
 		}
 
-		if (notifySched == 1) kill(schedPid, SIGMSGQ);
+		//if (notifySched == 1) kill(schedPid, SIGMSGQ);
 		if (exitFlag == 1) break;
 	}
 	// 7. Clear clock resources
-	clearResources(SIGINT);
+	destroyClk(true);
 }
 
 void clearResources(int signum)
-{
+{	
 	//TODO Clears all resources in case of interruption
-	if (processes != NULL) free(processes);
-	destroyClk(true);
+	free(processes);
     	msgctl(msgqid, IPC_RMID, (struct msqid_ds*) NULL);
 
 	exit(EXIT_SUCCESS);
@@ -187,6 +187,11 @@ process_t* CreateProcesses(const char* fileName, int* numberOfProcesses)
 				chIndex++;
 			}
 			chIndex++;
+			
+			//null terminate the string passed to atoi
+			numberSize++;
+			number = (char*)realloc(number, numberSize);
+			number[numberSize-1] = '\0';
 
 			#ifdef DEBUG
 			printf("%d\t", atoi(number));
