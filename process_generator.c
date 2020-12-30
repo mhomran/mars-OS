@@ -106,13 +106,17 @@ int main(int argc, char * argv[]) {
 		for(int i = 0; i < numberOfProcesses; i++) {
 			if (processes[i].arrived == 0) {
 				exitFlag = 0;
+
 				if (processes[i].arrivalTime <= curTime) {
 					processes[i].arrived = 1;
-
+					
 					struct msgbuff message;
 					message.mtype = 1;
 					message.proc = processes[i];
-					msgsnd(msgqid, &message, sizeof(process_t), 0);
+					if(msgsnd(msgqid, &message, sizeof(process_t), 0) == -1) {
+						printf("process_generator: problem in sending to msg queue\n");
+						exit(EXIT_FAILURE);
+					}
 					
 					notifySched = 1;
 
@@ -127,7 +131,6 @@ int main(int argc, char * argv[]) {
 		if (exitFlag == 1) break;
 	}
 	// 7. Clear clock resources
-	free(processes);
 	clearResources(SIGINT);
 }
 
