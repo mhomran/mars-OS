@@ -9,8 +9,13 @@
 #include "headers.h"
 #include "porcess.h"
 #include "PCB.h"
+#include "RQ.h"
+
+#define RQSZ 1000
 
 key_t msgqid;
+struct Queue* rq;
+
 
 struct msgbuff
 {
@@ -40,15 +45,20 @@ int main(int argc, char * argv[])
         exit(-1);
     }
     signal(SIGMSGQ, ReadProcess);
+    rq = createQueue(RQSZ);
 
-    // 1.  Start a new process. (Fork it and give it its parameters.)
-    if(fork() == 0){
-        execl("process.out", "process.out", NULL);
+    while(!isEmpty(rq)){
+        PCB* entry = dequeue(rq);
+        if(entry->state = READY){ // Start a new process. (Fork it and give it its parameters.)
+            if(fork() == 0){
+                
+                execl("process.out", "process.out", entry->pid, entry->arrivalTime, entry->runTime, entry->priority, NULL);
+            }
+        }
     }
-    
-    
+
+
     //upon termination release the clock resources.
-    
     destroyClk(true);
 }
 
@@ -67,6 +77,12 @@ void ReadProcess(int signum){
     }
 }
 
-void CreateEntry(process entry){
-
+void CreateEntry(process proc){
+    PCB entry;
+    entry.pid = proc.id;
+    entry.arrivalTime = proc.arrivalTime;
+    entry.runTime = proc.runTime;
+    entry.priority = proc.priority;
+    entry.state = READY;
+    enqueue(rq, entry);
 }

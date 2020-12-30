@@ -1,11 +1,20 @@
+/**
+ * @file RQ.h
+ * @author Ahmed Ashraf (ahmed.ashraf.cmp@gmail.com)
+ * @brief A mocking of the ready queue which contains the porcess that have already arrived to the scheduler
+ * @version 0.1
+ * @date 2020-12-30
+ */
+
 #include <limits.h> 
 #include <stdio.h> 
 #include <stdlib.h> 
+#include "PCB.h"
   
 struct Queue { 
     int front, rear, size; 
     unsigned capacity; 
-    int* array; 
+    PCB* array; 
 }; 
 
 struct Queue* createQueue(unsigned capacity) 
@@ -16,8 +25,8 @@ struct Queue* createQueue(unsigned capacity)
     queue->front = queue->size = 0; 
   
     queue->rear = capacity - 1; 
-    queue->array = (int*)malloc( 
-        queue->capacity * sizeof(int)); 
+    queue->array = (PCB*)malloc( 
+        queue->capacity * sizeof(PCB)); 
     return queue; 
 } 
 
@@ -31,7 +40,7 @@ int isEmpty(struct Queue* queue)
     return (queue->size == 0); 
 } 
 
-void enqueue(struct Queue* queue, int item) 
+void enqueue(struct Queue* queue, PCB item) 
 { 
     if (isFull(queue)) 
         return; 
@@ -39,30 +48,29 @@ void enqueue(struct Queue* queue, int item)
                   % queue->capacity; 
     queue->array[queue->rear] = item; 
     queue->size = queue->size + 1; 
-    printf("%d enqueued to queue\n", item); 
 } 
 
-int dequeue(struct Queue* queue) 
+PCB* dequeue(struct Queue* queue) 
 { 
     if (isEmpty(queue)) 
-        return INT_MIN; 
-    int item = queue->array[queue->front]; 
+        return NULL; 
+    PCB item = queue->array[queue->front]; 
     queue->front = (queue->front + 1) 
                    % queue->capacity; 
     queue->size = queue->size - 1; 
-    return item; 
+    return &item; 
 } 
 
-int front(struct Queue* queue) 
+PCB* front(struct Queue* queue) 
 { 
     if (isEmpty(queue)) 
-        return INT_MIN; 
-    return queue->array[queue->front]; 
+        return NULL; 
+    return &queue->array[queue->front]; 
 } 
 
-int rear(struct Queue* queue) 
+PCB* rear(struct Queue* queue) 
 { 
     if (isEmpty(queue)) 
-        return INT_MIN; 
-    return queue->array[queue->rear]; 
+        return NULL; 
+    return &queue->array[queue->rear]; 
 } 
