@@ -24,6 +24,12 @@ struct msgbuff
  * @param signum SIGUSR flag
  */
 void ReadProcess(int signum);
+/**
+ * @brief Create a PCB object and insert it in the ready queue
+ * 
+ * @param entry process object
+ */
+void CreateEntry(process entry);
 
 int main(int argc, char * argv[])
 {
@@ -51,11 +57,16 @@ void ReadProcess(int signum){
         int recVal;
         struct msgbuff msg;
 
-        recVal = msgrcv(msgqid, &msg, sizeof(msg.proc), 0, IPC_NOWAIT);
+        recVal = msgrcv(msgqid, &msg, sizeof(msg.proc), 0, IPC_NOWAIT);  // Try to recieve the new process
         if(recVal == -1){
+            // If there is no process recieved then break
             break;
         }
-
-        
+        // If successfuly recieved the new process add it to the ready queue
+        CreateEntry(msg.proc);
     }
+}
+
+void CreateEntry(process entry){
+
 }
