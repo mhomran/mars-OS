@@ -14,7 +14,7 @@
 struct Queue { 
     int front, rear, size; 
     unsigned capacity; 
-    PCB* array; 
+    PCB** array; 
 }; 
 
 struct Queue* createQueue(unsigned capacity) 
@@ -25,8 +25,7 @@ struct Queue* createQueue(unsigned capacity)
     queue->front = queue->size = 0; 
   
     queue->rear = capacity - 1; 
-    queue->array = (PCB*)malloc( 
-        queue->capacity * sizeof(PCB)); 
+    queue->array = malloc(queue->capacity * sizeof(PCB*)); 
     return queue; 
 } 
 
@@ -40,7 +39,7 @@ int isEmpty(struct Queue* queue)
     return (queue->size == 0); 
 } 
 
-void enqueue(struct Queue* queue, PCB item) 
+void enqueue(struct Queue* queue, PCB* item) 
 { 
     if (isFull(queue)) 
         return; 
@@ -54,23 +53,23 @@ PCB* dequeue(struct Queue* queue)
 { 
     if (isEmpty(queue)) 
         return NULL; 
-    PCB item = queue->array[queue->front]; 
+    PCB* item = queue->array[queue->front]; 
     queue->front = (queue->front + 1) 
                    % queue->capacity; 
     queue->size = queue->size - 1; 
-    return &item; 
+    return item; 
 } 
 
 PCB* front(struct Queue* queue) 
 { 
     if (isEmpty(queue)) 
         return NULL; 
-    return &queue->array[queue->front]; 
+    return queue->array[queue->front]; 
 } 
 
 PCB* rear(struct Queue* queue) 
 { 
     if (isEmpty(queue)) 
         return NULL; 
-    return &queue->array[queue->rear]; 
+    return queue->array[queue->rear]; 
 } 

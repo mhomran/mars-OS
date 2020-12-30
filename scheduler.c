@@ -7,7 +7,7 @@
  */
 
 #include "headers.h"
-#include "porcess.h"
+#include "process_generator.h"
 #include "PCB.h"
 #include "RQ.h"
 
@@ -16,13 +16,18 @@
 key_t msgqid;
 struct Queue* rq;
 
-
 struct msgbuff
 {
     long mtype;
-    process proc;
+    process_t proc;
 };
 
+/**
+ * @brief Reads the message queue and push the new processes
+ * to the ready queue
+ * @param wait 1 if it has to wait 0 otherwise
+ */
+void ReadMSGQ(short wait);
 /**
  * @brief Signal handler for the SIGUSR to handle arriving of a new process
  *
@@ -34,25 +39,38 @@ void ReadProcess(int signum);
  * 
  * @param entry process object
  */
-void CreateEntry(process entry);
+void CreateEntry(process_t entry);
 
 int main(int argc, char * argv[])
 {
     initClk();
+
+    if(argc < 2){
+        perror("\n\nScheduler: Couldn't find number of processes\n");
+        exit(-1);
+    }
+    int nproc = atoi(argv[1]);
+
     msgqid = msgget(MSGQKEY, 0644);
     if(msgqid == -1){
         perror("\n\nScheduler: Failed to get the message queue\n");
         exit(-1);
     }
+
     signal(SIGMSGQ, ReadProcess);
     rq = createQueue(RQSZ);
 
-    while(!isEmpty(rq)){
-        PCB* entry = dequeue(rq);
-        if(entry->state = READY){ // Start a new process. (Fork it and give it its parameters.)
-            if(fork() == 0){
-                
-                execl("process.out", "process.out", entry->pid, entry->arrivalTime, entry->runTime, entry->priority, NULL);
+    while(nproc){
+        // If the ready queue is empty, and still there are processes, wait 
+        if(isEmpty(rq)) ReadMSGQ(1);
+
+        while(!isEmpty(rq)){
+            PCB* entry = dequeue(rq);
+            if(entry->state = READY){ // Start a new process. (Fork it and give it its parameters.)
+                if(fork() == 0){
+                    
+                    execl("process.out", "process.out", entry->pid, entry->arrivalTime, entry->runTime, entry->priority, NULL);
+                }
             }
         }
     }
@@ -62,27 +80,33 @@ int main(int argc, char * argv[])
     destroyClk(true);
 }
 
-void ReadProcess(int signum){
+void ReadMSGQ(short wait){
     while(1){
         int recVal;
         struct msgbuff msg;
 
-        recVal = msgrcv(msgqid, &msg, sizeof(msg.proc), 0, IPC_NOWAIT);  // Try to recieve the new process
+        recVal = msgrcv(msgqid, &msg, sizeof(msg.proc), 0, wait ? !IPC_NOWAIT : IPC_NOWAIT);  // Try to recieve the new process
         if(recVal == -1){
             // If there is no process recieved then break
             break;
         }
+
         // If successfuly recieved the new process add it to the ready queue
         CreateEntry(msg.proc);
     }
 }
 
-void CreateEntry(process proc){
-    PCB entry;
-    entry.pid = proc.id;
-    entry.arrivalTime = proc.arrivalTime;
-    entry.runTime = proc.runTime;
-    entry.priority = proc.priority;
-    entry.state = READY;
+void ReadProcess(int signum){
+    ReadMSGQ(0);
+}
+
+void CreateEntry(process_t proc){
+    PCB* entry = (PCB*)malloc(sizeof(PCB));
+    entry->pid = proc.id;
+    entry->arrivalTime = proc.arrivalTime;
+    entry->runTime = proc.runTime;
+    entry->priority = proc.priority;
+    entry->state = READY;
     enqueue(rq, entry);
 }
+
