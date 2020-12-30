@@ -85,11 +85,11 @@ int main(int argc, char * argv[])
         while(!isEmpty(rq)){
             switch (schedulerType)
             {
-            case 1: HPFSheduler();
+            case 1: SRTNSheduler();
                 break;
-            case 2: SRTNSheduler();
+            case 2: RRSheduler();
                 break;
-            default: RRSheduler();
+            default: HPFSheduler();
                 break;
             }
         }
