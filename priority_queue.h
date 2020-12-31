@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 #include <limits.h>
-# include "PCB.h"
+#include "PCB.h"
 
 #define max_cap 30
 
@@ -16,8 +16,8 @@
  */
 typedef struct heap
 {
-  int size;
-  PCB *arr[max_cap];
+	int size;
+	PCB *arr[max_cap];
 } heap;
 
 
@@ -27,39 +27,36 @@ typedef struct heap
  */
 void swap(PCB **x, PCB **y)
 {
-  PCB* temp = *x;
-  *x = *y;
-  *y = temp;
+	PCB* temp = *x;
+	*x = *y;
+	*y = temp;
 }
 
 
 void min_heapify(heap *hp, int parent)
 {
-  PCB **arr = hp->arr;
-  int size = hp->size;
-  int left = 2 * parent + 1;
-  int right = 2 * parent + 2;
-  int smallest;
+	PCB **arr = hp->arr;
+	int size = hp->size, min;
+	int left = 2 * parent + 1;
+	int right = 2 * parent + 2;
 
-  // smallest = min(left and parent)
-  if (left < size && arr[left]->priority < arr[parent]->priority)
-    smallest = left;
-  else
-    smallest = parent;
+	// min = minimum of left, right and parent
+	if (left < size && arr[left]->priority < arr[parent]->priority)
+		min = left;
+	else
+		min = parent;
 
-  // smallest = min(smallest and right)
-  if (right < size && arr[right]->priority < arr[smallest]->priority)
-    smallest = right;
+	if (right < size && arr[right]->priority < arr[min]->priority)
+		min = right;
 
-  // if the smallest element is not the parent
-  if (smallest != parent)
-  {
-    // swap pointers
-    swap(&arr[parent], &arr[smallest]);
+	
+	if (min != parent){
+		// swap pointers
+		swap(&arr[parent], &arr[min]);
 
-    // call heapify for the new smallest
-    min_heapify(hp, smallest);
-  }
+		// call heapify for the new min
+		min_heapify(hp, min);
+	}
 }
 
 /**
@@ -67,10 +64,10 @@ void min_heapify(heap *hp, int parent)
  */
 void build_minheap(heap *hp)
 {
-  int N = hp->size;
-  int start = (N % 2 == 0) ? (N - 1) / 2 : N / 2 - 1;
-  for (int i = start; i >= 0; i--)
-    min_heapify(hp, i);
+	int N = hp->size;
+	int start = (N % 2 == 0) ? (N - 1) / 2 : N / 2 - 1;
+	for (int i = start; i >= 0; i--)
+		min_heapify(hp, i);
 }
 
 /** 
@@ -78,7 +75,7 @@ void build_minheap(heap *hp)
  */
 PCB* minimum(heap *hp)
 {
-  return hp->arr[0];
+	return hp->arr[0];
 }
 
 /**
@@ -86,25 +83,24 @@ PCB* minimum(heap *hp)
  */
 PCB* extract_min(heap *hp)
 {
-  int N = hp->size;
-  if (N == 0)
-  {
-    printf("Can’t remove element as queue is empt");
-    return 0;
-  }
+	int N = hp->size;
+	if (N == 0){
+		printf("Can’t remove element as queue is empt");
+		return 0;
+	}
 
-  // save the value
-  PCB *min = hp->arr[0];
+	// save the value
+	PCB *min = hp->arr[0];
 
-  // replace it with last element in heap
-  hp->arr[0] = hp->arr[N - 1];
-  
-  // Decrease the size and call min-heapify for root
-  hp->size = N - 1;
-  min_heapify(hp, 0);
+	// replace it with last element in heap
+	hp->arr[0] = hp->arr[N - 1];
 
-  // Return old top
-  return min;
+	// Decrease the size and call min-heapify for root
+	hp->size = N - 1;
+	min_heapify(hp, 0);
+
+	// Return old top
+	return min;
 }
 
 /**
@@ -114,22 +110,20 @@ PCB* extract_min(heap *hp)
  */
 void dec_priority(heap *hp, int i, int val)
 {
-  PCB **arr = hp->arr;
-  if (val > arr[i]->priority)
-  {
-    printf("New value is more than current value, can’t be inserted\n");
-    return;
-  }
+	PCB **arr = hp->arr;
+	if (val > arr[i]->priority){
+		printf("Error: New value is more than current value\n");
+		return;
+	}
 
-  // Set the priority
-  arr[i]->priority = val;
+	// Set the priority
+	arr[i]->priority = val;
 
-  // while parent's priority is higher, swap
-  while (i > 0 && arr[(i - 1) / 2]->priority > arr[i]->priority)
-  {
-    swap(&arr[(i - 1) / 2], &arr[i]);
-    i = (i - 1) / 2;
-  }
+	// while parent's priority is higher, swap
+	while (i > 0 && arr[(i - 1) / 2]->priority > arr[i]->priority){
+		swap(&arr[(i - 1) / 2], &arr[i]);
+		i = (i - 1) / 2;
+	}
 }
 
 /**
@@ -138,18 +132,17 @@ void dec_priority(heap *hp, int i, int val)
  */ 
 void insert_value(heap *hp, PCB *pc)
 {
-  if (hp->size == max_cap)
-  {
-    printf("Heap overflow");
-    return;
-  }
+	if (hp->size == max_cap){
+		printf("Heap overflow");
+		return;
+	}
 
-  // assign the new pointer to first empty position
-  hp -> arr[hp -> size] = pc;
+	// assign the new pointer to first empty position
+	hp -> arr[hp -> size] = pc;
 
-  // Insert with high priority then dec priority to its value
-  int val = pc ->priority;
-  hp->arr[hp->size] ->priority = INT_MAX;
-  hp->size = hp->size + 1;
-  dec_priority(hp, hp ->size - 1, val);
+	// Insert with high priority then decrease priority to its value
+	int val = pc ->priority;
+	hp->arr[hp->size] ->priority = INT_MAX;
+	hp->size = hp->size + 1;
+	dec_priority(hp, hp ->size - 1, val);
 }
