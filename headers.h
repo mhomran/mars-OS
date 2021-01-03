@@ -18,7 +18,12 @@ typedef short bool;
 #define SHKEY 300
 #define MSGQKEY 65
 
+// Process remaining time shared memory key
+#define PRSHKEY 301
+
 #define SIGMSGQ SIGUSR1
+#define SIGPF SIGUSR2
+#define SIGSLP SIGUSR1
 
 ///==============================
 //don't mess with this variable//

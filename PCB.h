@@ -14,6 +14,7 @@ typedef enum {READY, PAUSED, BLOCKED, FINISHED} STATE;
 
 typedef struct 
 {
+    int id;                 // ID
     int pid;                // Process ID
     int arrivalTime;        // Process arrival time in the read queue
     int runTime;            // Estimated running time
