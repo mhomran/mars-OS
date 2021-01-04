@@ -126,3 +126,15 @@ void InsertValue(struct Queue *hp, PCB *pc)
 	hp->size = hp->size + 1;
 	DecPriority(hp, hp ->size - 1, val);
 }
+
+/**
+ * @brief Prints all entries in the priority queue (mainly for debugging)
+ */ 
+void PrintAll(struct Queue *hp)
+{
+  int size = hp->size;
+  for (int i = 0; i < size; i++)
+  {
+    printf("element %d is %d\n", i, hp->array[i]->priority);
+  }
+}

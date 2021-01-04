@@ -18,7 +18,7 @@ key_t msgqid;
 
 struct msgbuff {
     long mtype;
-    char* mtext;
+    //char* mtext;
     process_t proc;
 };
 
@@ -115,9 +115,10 @@ int main(int argc, char * argv[]) {
 					processes[i].arrived = 1;
 					
 					struct msgbuff message;
-					message.mtext = NULL;
+					//message.mtext = NULL;
 					message.mtype = 1;
 					message.proc = processes[i];
+
 					if(msgsnd(msgqid, &message, sizeof(process_t), 0) == -1) {
 						printf("process_generator: problem in sending to msg queue\n");
 						exit(EXIT_FAILURE);
