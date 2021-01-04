@@ -167,7 +167,7 @@ void CreateEntry(process_t proc)
         case 0:
         entry->priority = entry->remainingTime;
         InsertValue(rq, entry);
-        if(running) SRTNSheduler();  // Should be called again to check that the current runnning proc is the SRTN
+        // if(running) SRTNSheduler();  // Should be called again to check that the current runnning proc is the SRTN
         break;
         case 1:
         Enqueue(rq, entry);
@@ -178,6 +178,7 @@ void CreateEntry(process_t proc)
         default:
         break;
         }
+        printf("\n\nScheduler: process %d arrived at %d\n", entry->id, getClk());
 }
 
 /**
