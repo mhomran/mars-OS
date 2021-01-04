@@ -167,6 +167,7 @@ void CreateEntry(process_t proc)
         case 0:
         entry->priority = entry->remainingTime;
         InsertValue(rq, entry);
+        if(running) SRTNSheduler();  // Should be called again to check that the current runnning proc is the SRTN
         break;
         case 1:
         Enqueue(rq, entry);
@@ -201,7 +202,7 @@ void HPFSheduler()
                                 myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
 
                         if (rt == -1) {
-                                perror("scheduler: couldn't run scheduler.out\n");
+                                perror("\n\nScheduler: couldn't run scheduler.out\n");
                                 exit(EXIT_FAILURE);
                         }
                 }
@@ -217,7 +218,42 @@ void HPFSheduler()
  */
 void SRTNSheduler()
 {
-  //STUB
+  if(running)
+  {
+          PCB* nextProc = Minimum(rq);
+          if(running->remainingTime > nextProc->remainingTime)  // Context Switching
+          {
+                  printf("\n\nScheduler: process %d has blocked at time %d", running->id, getClk());
+                  running->state = BLOCKED;
+                  InsertValue(rq, running);
+                  kill(running->pid, SIGSLP);
+          }
+          else return;
+  }
+  else if(running == NULL || running->state == BLOCKED){
+          running = ExtractMin(rq); 
+          if(running == READY){
+
+                #ifdef DEBUG
+                printf("process %d started running at %d.\n", running->id, getClk());
+                #endif
+
+                *shmRaddr = running ->remainingTime;
+                if(fork() == 0){
+                        int rt = execl("build/process.out", "process.out", myItoa(running->id),
+                        myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
+                        if (rt == -1)
+                        {
+                                perror("\n\nScheduler: couldn't run scheduler.out\n");
+                                exit(EXIT_FAILURE);
+                        }
+                }
+          }
+          else if (running->state == BLOCKED)
+          {
+                  kill(running->pid, SIGSLP);
+          }
+  }
 }
 
 /**
@@ -272,7 +308,7 @@ void RRSheduler(int quantum)
 void ProcFinished(int signum)
 {
         #ifdef DEBUG
-        printf("process %d finished running at %d.\n", running->id, getClk());
+        printf("\n\nScheduler: process %d finished running at %d.\n", running->id, getClk());
         #endif
 
         free(running);
