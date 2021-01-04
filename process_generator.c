@@ -94,18 +94,18 @@ int main(int argc, char * argv[]) {
 	
 	// 4. Use this function after creating the clock process to initialize clock
 	initClk();
-	// To get time use this
-	int curTime = getClk();
+	int curTime = -1;
 
 	// TODO Generation Main Loop
 	// 5. Create a data structure for processes and provide it with its parameters.
 	///DONE
 	while (1) {
+		
+		if (getClk() == curTime ) continue;
 		curTime = getClk();
-
+		
 		// 6. Send the information to the scheduler at the appropriate time.
 		uint8_t exitFlag = 1;
-		uint8_t notifySched = 0;
 		for(int i = 0; i < numberOfProcesses; i++) {
 			if (processes[i].arrived == 0) {
 				exitFlag = 0;
@@ -121,7 +121,6 @@ int main(int argc, char * argv[]) {
 						exit(EXIT_FAILURE);
 					}
 					
-					notifySched = 1;
 
 					#ifdef DEBUG
 					printf("process %d arrived at %d\n", processes[i].id, curTime);
@@ -129,8 +128,10 @@ int main(int argc, char * argv[]) {
 				}
 			}
 		}
-
-		if (notifySched == 1) kill(schedPid, SIGMSGQ);
+		
+		//notify the scheduler to work
+		kill(schedPid, SIGMSGQ);
+		
 		if (exitFlag == 1) break;
 	}
 	// 7. Clear clock resources

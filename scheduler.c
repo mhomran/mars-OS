@@ -8,24 +8,24 @@
 
 #include "headers.h"
 #include "process_generator.h"
-#include "PCB.h"
-#include "RQ.h"
+#include "priority_queue.h"
 
 #define RQSZ 1000
-
-key_t msgqid;
-int *shmRaddr;
-struct Queue *rq;
-PCB *running;
-
-// Remaining time for current quantum
-int currQ, nproc, schedulerType;
 
 struct msgbuff
 {
   long mtype;
   process_t proc;
 };
+
+key_t msgqid;
+int *shmRaddr;
+struct Queue *rq;
+PCB *running;
+uint8_t processGenFinished;
+
+// Remaining time for current quantum
+int currQ, nproc, schedulerType;
 
 // Functions declaration
 void ReadMSGQ(short wait);
@@ -74,27 +74,31 @@ int main(int argc, char *argv[])
 
   signal(SIGMSGQ, ReadProcess);
   signal(SIGPF, ProcFinished);
-  rq = createQueue(RQSZ);
+  rq = CreateQueue(RQSZ);
   running = NULL;
 
-  int currTime = getClk();
+  int currTime = -1;
+
   while (nproc)
   {
     // If the ready queue is empty, and still there are processes, wait
-    while (nproc && isEmpty(rq));
+    while (nproc && IsEmpty(rq));
 
-    while (!isEmpty(rq))
+    while (!IsEmpty(rq))
     {
-      if (getClk() == currTime && running)
-        continue;
+      if (getClk() == currTime && running != NULL && processGenFinished == 1) continue;
       currTime = getClk();
+      processGenFinished = 0;
+        
+        printf("scheduler: let's schedule\n");
+
       switch (schedulerType)
       {
       case 0:
         SRTNSheduler();
         break;
       case 1:
-        RRSheduler(quantum);
+        RRSheduler(1);
         break;
       default:
         HPFSheduler();
@@ -139,18 +143,7 @@ void ReadMSGQ(short wait)
 void ReadProcess(int signum)
 {
   ReadMSGQ(0);
-  switch (schedulerType)
-      {
-      case 0:
-        SRTNSheduler();
-        break;
-
-      case 2:
-        HPFSheduler();
-        break;
-      default:
-      break;
-      }
+  processGenFinished = 1;
 }
 
 /**
@@ -171,13 +164,13 @@ void CreateEntry(process_t proc)
   {
   case 0:
     entry->priority = entry->remainingTime;
-    insert_value(rq, entry);
+    InsertValue(rq, entry);
     break;
   case 1:
-    enqueue(rq, entry);
+    Enqueue(rq, entry);
     break;
   case 2:
-    insert_value(rq, entry);
+    InsertValue(rq, entry);
     break;
   default:
     break;
@@ -198,7 +191,7 @@ void HPFSheduler()
     return;
   }
 
-  running = extract_min(rq);
+  running = ExtractMin(rq);
   if (running->state == READY)
   { // Start a new process. (Fork it and give it its parameters.)
     *shmRaddr = running ->remainingTime;
@@ -279,7 +272,7 @@ void RRSheduler(int quantum)
     currQ--;
     if (currQ == 0)
     {
-      enqueue(rq, running);
+      Enqueue(rq, running);
       kill(running->pid, SIGSLP);
       running->state = BLOCKED;
     }
@@ -288,7 +281,7 @@ void RRSheduler(int quantum)
   }
 
   currQ = quantum;
-  running = dequeue(rq);
+  running = Dequeue(rq);
   if (running->state == READY)
   { // Start a new process. (Fork it and give it its parameters.)
     *shmRaddr = running ->remainingTime;

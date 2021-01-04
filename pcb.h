@@ -1,14 +1,14 @@
 
 /**
- * @file PCB.h
+ * @file pcb.h
  * @author Ahmed Ashraf (ahmed.ashraf.cmp@gmail.com)
  * @brief PCB data structure
  * @version 0.1
  * @date 2020-12-30
  */
 
-#ifndef PCB_
-#define PCB_
+#ifndef _PCB_H
+#define _PCB_H
 
 typedef enum {READY, PAUSED, BLOCKED, FINISHED} STATE;
 
@@ -24,4 +24,4 @@ typedef struct
     int waitingTime;        // Total time from creation to first run
 } PCB;
 
-#endif
+#endif /* _PCB_H */

@@ -6,15 +6,15 @@
 
 #include <stdio.h>
 #include <limits.h>
-#include "PCB.h"
-#include "RQ.h"
+#include "pcb.h"
+#include "priority_queue.h"
 
 
 /**
  * \fn 
- * @brief function to swap PCB pointers
+ * @brief function to Swap PCB pointers
  */
-void swap(PCB **x, PCB **y)
+void Swap(PCB **x, PCB **y)
 {
 	PCB* temp = *x;
 	*x = *y;
@@ -24,7 +24,7 @@ void swap(PCB **x, PCB **y)
 /** 
  * @brief Returns top element (root) without removing it
  */
-PCB* minimum(struct Queue *hp)
+PCB* Minimum(struct Queue *hp)
 {
 	return hp->array[0];
 }
@@ -33,7 +33,7 @@ PCB* minimum(struct Queue *hp)
 /**
  * @brief Extract top element and remove it
  */
-PCB* extract_min(struct Queue *hp)
+PCB* ExtractMin(struct Queue *hp)
 {
 	int N = hp->size;
 	if (N == 0){
@@ -49,19 +49,46 @@ PCB* extract_min(struct Queue *hp)
 
 	// Decrease the size and call min-heapify for root
 	hp->size = N - 1;
-	min_heapify(hp, 0);
+	MinHeapify(hp, 0);
 
 	// Return old top
 	return min;
 }
 
 
+
+void MinHeapify(struct Queue *hp, int parent)
+{
+	PCB **arr = hp->array;
+	int size = hp->size, min;
+	int left = 2 * parent + 1;
+	int right = 2 * parent + 2;
+
+	// min = minimum of left, right and parent
+	if (left < size && arr[left]->priority < arr[parent]->priority)
+		min = left;
+	else
+		min = parent;
+
+	if (right < size && arr[right]->priority < arr[min]->priority)
+		min = right;
+
+
+	if (min != parent){
+		// Swap pointers
+		Swap(&arr[parent], &arr[min]);
+
+		// call heapify for the new min
+		MinHeapify(hp, min);
+	}
+}
+
 /**
  * @brief change priority of element
  * @param i index of element that we want to change
  * @param val new value
  */
-void dec_priority(struct Queue *hp, int i, int val)
+void DecPriority(struct Queue *hp, int i, int val)
 {
 	PCB **array = hp->array;
 	if (val > array[i]->priority){
@@ -72,9 +99,9 @@ void dec_priority(struct Queue *hp, int i, int val)
 	// Set the priority
 	array[i]->priority = val;
 
-	// while parent's priority is higher, swap
+	// while parent's priority is higher, Swap
 	while (i > 0 && array[(i - 1) / 2]->priority > array[i]->priority){
-		swap(&array[(i - 1) / 2], &array[i]);
+		Swap(&array[(i - 1) / 2], &array[i]);
 		i = (i - 1) / 2;
 	}
 }
@@ -83,9 +110,9 @@ void dec_priority(struct Queue *hp, int i, int val)
  * @brief Inserts a new PCB to the heap
  * @param pc pointer to the PCB
  */ 
-void insert_value(struct Queue *hp, PCB *pc)
+void InsertValue(struct Queue *hp, PCB *pc)
 {
-	if (hp->size == hp-> capacity){
+	if (hp->size == hp-> capacity) {
 		printf("Heap overflow");
 		return;
 	}
@@ -97,5 +124,5 @@ void insert_value(struct Queue *hp, PCB *pc)
 	int val = pc ->priority;
 	hp->array[hp->size] ->priority = INT_MAX;
 	hp->size = hp->size + 1;
-	dec_priority(hp, hp ->size - 1, val);
+	DecPriority(hp, hp ->size - 1, val);
 }

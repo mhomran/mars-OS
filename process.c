@@ -2,7 +2,7 @@
 
 /* Modify this file as needed*/
 int remainingtime;
-bool sleep = 0;
+bool sleeped = 0;
 void SigSleepHandler(int signum);
 
 int main(int agrc, char * argv[])
@@ -31,13 +31,13 @@ int main(int agrc, char * argv[])
 
     while (remainingtime > 0)
     {
-        if (getClk() != currTime)
+        if (getClk() != curTime)
         {
           remainingtime -= 1;
-          currTime = getClk();
+          curTime = getClk();
           *shmRaddr = remainingtime;
         }
-        while (sleep);
+        while (sleeped);
     }
     shmdt(shmRaddr);
     destroyClk(false);
@@ -49,6 +49,6 @@ int main(int agrc, char * argv[])
 
 void SigSleepHandler(int signum)
 {
-  sleep = !sleep;
+  sleeped = !sleeped;
   signal(SIGSLP, SigSleepHandler);
 }

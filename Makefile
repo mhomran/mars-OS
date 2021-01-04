@@ -6,12 +6,23 @@ SRCS := $(shell find . -name "*.c")
 OBJS := $(SRCS:.c=.out)
 
 .PHONY: all
-all: $(OBJS)
+all:
+	$(CC) $(CFLAGS) priority_queue.c ready_queue.c scheduler.c -o $(BUILD_DIR)/scheduler.out
+	$(CC) $(CFLAGS) process_generator.c -o $(BUILD_DIR)/process_generator.out
+	$(CC) $(CFLAGS) test_generator.c -o $(BUILD_DIR)/test_generator.out
+	$(CC) $(CFLAGS) process.c -o $(BUILD_DIR)/process.out
 
-%.out: %.c
-	mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) $< -o $(BUILD_DIR)/$@
+scheduler.out: scheduler.c
+	$(CC) $(CFLAGS) priority_queue.c ready_queue.c scheduler.c -o $(BUILD_DIR)/scheduler.out
+	
+process_generator.out: process_generator.c
+	$(CC) $(CFLAGS) process_generator.c -o $(BUILD_DIR)/process_generator.out
 
+test_generator.out: test_generator.c
+	$(CC) $(CFLAGS) test_generator.c -o $(BUILD_DIR)/test_generator.out
+
+process.out: process.c
+	$(CC) $(CFLAGS) process.c -o $(BUILD_DIR)/process.out
 
 .PHONY: clean
 clean:
