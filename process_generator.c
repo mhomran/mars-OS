@@ -18,6 +18,7 @@ key_t msgqid;
 
 struct msgbuff {
     long mtype;
+    char* mtext;
     process_t proc;
 };
 
@@ -114,6 +115,7 @@ int main(int argc, char * argv[]) {
 					processes[i].arrived = 1;
 					
 					struct msgbuff message;
+					message.mtext = NULL;
 					message.mtype = 1;
 					message.proc = processes[i];
 					if(msgsnd(msgqid, &message, sizeof(process_t), 0) == -1) {
@@ -130,10 +132,14 @@ int main(int argc, char * argv[]) {
 		}
 		
 		//notify the scheduler to work
-		kill(schedPid, SIGMSGQ);
-		
+		if (kill(schedPid, SIGMSGQ) == -1) {
+			printf("processs_generator: can't send SIGMSGQ to scheduler\n");
+			exit(EXIT_FAILURE);
+		}
 		if (exitFlag == 1) break;
 	}
+
+	wait(0);
 	// 7. Clear clock resources
 	destroyClk(true);
 }

@@ -11,10 +11,12 @@ all:
 	$(CC) $(CFLAGS) process_generator.c -o $(BUILD_DIR)/process_generator.out
 	$(CC) $(CFLAGS) test_generator.c -o $(BUILD_DIR)/test_generator.out
 	$(CC) $(CFLAGS) process.c -o $(BUILD_DIR)/process.out
+	$(CC) $(CFLAGS) clk.c -o $(BUILD_DIR)/clk.out
+	
 
 scheduler.out: scheduler.c
 	$(CC) $(CFLAGS) priority_queue.c ready_queue.c scheduler.c -o $(BUILD_DIR)/scheduler.out
-	
+
 process_generator.out: process_generator.c
 	$(CC) $(CFLAGS) process_generator.c -o $(BUILD_DIR)/process_generator.out
 
@@ -24,6 +26,10 @@ test_generator.out: test_generator.c
 process.out: process.c
 	$(CC) $(CFLAGS) process.c -o $(BUILD_DIR)/process.out
 
+clk.out: clk.c
+	$(CC) $(CFLAGS) clk.c -o $(BUILD_DIR)/clk.out
+
+
 .PHONY: clean
 clean:
 	rm -f -r $(BUILD_DIR) 
@@ -31,6 +37,11 @@ clean:
 .PHONY: run
 run:	
 	./$(BUILD_DIR)/process_generator.out
+
+.PHONY: run_valgrind
+run_valgrind:	
+	valgrind ./$(BUILD_DIR)/process_generator.out
+
 
 .PHONY: generate_test
 generate_test:

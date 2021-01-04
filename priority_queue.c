@@ -37,7 +37,7 @@ PCB* ExtractMin(struct Queue *hp)
 {
 	int N = hp->size;
 	if (N == 0){
-		printf("Can’t remove element as queue is empt");
+		printf("Can’t remove element as queue is empty");
 		return 0;
 	}
 

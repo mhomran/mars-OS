@@ -6,16 +6,19 @@
  * @date 2020-12-30
  */
 
+#define DEBUG
+#define RQSZ 1000
+
 #include "headers.h"
 #include "process_generator.h"
 #include "priority_queue.h"
 
-#define RQSZ 1000
 
 struct msgbuff
 {
-  long mtype;
-  process_t proc;
+        long mtype;
+        char* mtext;
+        process_t proc;
 };
 
 key_t msgqid;
@@ -39,76 +42,75 @@ void ProcFinished(int signum);
 
 int main(int argc, char *argv[])
 {
-  initClk();
+        signal(SIGMSGQ, ReadProcess);
+        signal(SIGPF, ProcFinished);
 
-  if (argc < 3)
-  {
-    perror("\n\nScheduler: Not enough argument\n");
-    exit(-1);
-  }
-  schedulerType = atoi(argv[1]);
-  nproc = atoi(argv[2]);
+        initClk();
 
-  msgqid = msgget(MSGQKEY, 0644);
-  if (msgqid == -1)
-  {
-    perror("\n\nScheduler: Failed to get the message queue\n");
-    exit(-1);
-  }
+        if (argc < 3) {
+                perror("\n\nScheduler: Not enough argument\n");
+                exit(EXIT_FAILURE);
+        }
 
-  // Create shared memory for remaining time of running process
-  key_t shmR_id = shmget(PRSHKEY, 4, IPC_CREAT | 0644);
-  if (shmR_id == -1)
-  {
-    perror("\n\nScheduler: Failed to get the shared memory\n");
-    exit(-1);
-  }
+        schedulerType = atoi(argv[1]);
+        nproc = atoi(argv[2]);
 
-  // attach to shared memory of runnign process
-  shmRaddr = (int *)shmat(shmR_id, (void *)0, 0);
-  if ((long)shmRaddr == -1)
-  {
-    perror("Error in attaching the shm in scheduler!");
-    exit(-1);
-  }
+        msgqid = msgget(MSGQKEY, 0644);
+        if (msgqid == -1) {
+                perror("\n\nScheduler: Failed to get the message queue\n");
+                exit(EXIT_FAILURE);
+        }
 
-  signal(SIGMSGQ, ReadProcess);
-  signal(SIGPF, ProcFinished);
-  rq = CreateQueue(RQSZ);
-  running = NULL;
 
-  int currTime = -1;
+        // Create shared memory for remaining time of the running process
+        key_t shmR_id = shmget(PRSHKEY, 4, IPC_CREAT | 0644);
+        if (shmR_id == -1) {
+                perror("\n\nScheduler: Failed to get the shared memory\n");
+                exit(EXIT_FAILURE);
+        }
 
-  while (nproc)
-  {
-    // If the ready queue is empty, and still there are processes, wait
-    while (nproc && IsEmpty(rq));
+        // attach to shared memory of the running process
+        shmRaddr = (int *)shmat(shmR_id, (void *)0, 0);
+        if ((long)shmRaddr == -1) {
+                perror("Error in attaching the shm in scheduler!");
+                exit(EXIT_FAILURE);
+        }
 
-    while (!IsEmpty(rq))
-    {
-      if (getClk() == currTime && running != NULL && processGenFinished == 1) continue;
-      currTime = getClk();
-      processGenFinished = 0;
-        
-        printf("scheduler: let's schedule\n");
 
-      switch (schedulerType)
-      {
-      case 0:
-        SRTNSheduler();
-        break;
-      case 1:
-        RRSheduler(1);
-        break;
-      default:
-        HPFSheduler();
-        break;
-      }
-    }
-  }
+        rq = CreateQueue(RQSZ);
+        running = NULL;
 
-  // upon termination release the clock resources.
-  destroyClk(true);
+        int currTime = 0;
+
+
+        while (nproc) {
+                // If the ready queue is empty, and still there are processes, wait
+                while (nproc && IsEmpty(rq));
+
+                while (!IsEmpty(rq)) {
+                        if (getClk() == currTime || processGenFinished == 0) continue;
+                        currTime = getClk();
+                        processGenFinished = 0;
+
+                        switch (schedulerType)
+                        {
+                        case 0:
+                        SRTNSheduler();
+                        break;
+
+                        case 1:
+                        RRSheduler(1);
+                        break;
+
+                        default:
+                        HPFSheduler();
+                        break;
+                        }
+                }
+        }
+
+        // upon termination release the clock resources.
+        destroyClk(false);
 }
 
 /**
@@ -118,21 +120,20 @@ int main(int argc, char *argv[])
  */
 void ReadMSGQ(short wait)
 {
-  while (1)
-  {
-    int recVal;
-    struct msgbuff msg;
+        while (1) {
+                int recVal;
+                struct msgbuff msg;
 
-    recVal = msgrcv(msgqid, &msg, sizeof(msg.proc), 0, wait ? !IPC_NOWAIT : IPC_NOWAIT); // Try to recieve the new process
-    if (recVal == -1)
-    {
-      // If there is no process recieved then break
-      break;
-    }
+                // Try to recieve the new process
+                recVal = msgrcv(msgqid, &msg, sizeof(msg.proc), 0, wait ? !IPC_NOWAIT : IPC_NOWAIT); 
+                if (recVal == -1) {
+                        // If there is no process recieved then break
+                        break;
+                }
 
-    // If successfuly recieved the new process add it to the ready queue
-    CreateEntry(msg.proc);
-  }
+                // If successfuly recieved the new process add it to the ready queue
+                CreateEntry(msg.proc);
+        }
 }
 
 /**
@@ -141,9 +142,9 @@ void ReadMSGQ(short wait)
  * @param signum SIGUSR flag
  */
 void ReadProcess(int signum)
-{
-  ReadMSGQ(0);
-  processGenFinished = 1;
+{        
+        ReadMSGQ(0);
+        processGenFinished = 1;
 }
 
 /**
@@ -153,29 +154,28 @@ void ReadProcess(int signum)
  */
 void CreateEntry(process_t proc)
 {
-  PCB *entry = (PCB *)malloc(sizeof(PCB));
-  entry->id = proc.id;
-  entry->arrivalTime = proc.arrivalTime;
-  entry->runTime = proc.runTime;
-  entry->priority = proc.priority;
-  entry->state = READY;
-  
-  switch (schedulerType)
-  {
-  case 0:
-    entry->priority = entry->remainingTime;
-    InsertValue(rq, entry);
-    break;
-  case 1:
-    Enqueue(rq, entry);
-    break;
-  case 2:
-    InsertValue(rq, entry);
-    break;
-  default:
-    break;
-  }
-    
+        PCB *entry = (PCB *)malloc(sizeof(PCB));
+        entry->id = proc.id;
+        entry->arrivalTime = proc.arrivalTime;
+        entry->runTime = proc.runTime;
+        entry->priority = proc.priority;
+        entry->state = READY;
+
+        switch (schedulerType)
+        {
+        case 0:
+        entry->priority = entry->remainingTime;
+        InsertValue(rq, entry);
+        break;
+        case 1:
+        Enqueue(rq, entry);
+        break;
+        case 2:
+        InsertValue(rq, entry);
+        break;
+        default:
+        break;
+        }
 }
 
 /**
@@ -184,34 +184,30 @@ void CreateEntry(process_t proc)
  */
 void HPFSheduler()
 {
-  if (running)
-  {
-    if (running -> remainingTime != *shmRaddr)
-      running ->remainingTime = *shmRaddr;
-    return;
-  }
+        if (running == NULL) {
+                running = ExtractMin(rq);
 
-  running = ExtractMin(rq);
-  if (running->state == READY)
-  { // Start a new process. (Fork it and give it its parameters.)
-    *shmRaddr = running ->remainingTime;
-    int pid;
-    if ((pid = fork()) == 0)
-    {
-      int rt = execl("build/process.out", "process.out", myItoa(running->id),
-                     myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
-      if (rt == -1)
-      {
-        perror("scheduler: couldn't run scheduler.out\n");
-        exit(EXIT_FAILURE);
-      }
-    }
-    else
-    {
-      running ->pid = pid;
-    }
-    
-  }
+                #ifdef DEBUG
+                printf("process %d started running at %d.\n", running->id, getClk());
+                #endif
+
+                // Start a new process. (Fork it and give it its parameters.)
+                *shmRaddr = running->remainingTime;
+
+                int pid;
+                if ((pid = fork()) == 0) {
+                        int rt = execl("build/process.out", "process.out", myItoa(running->id),
+                                myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
+
+                        if (rt == -1) {
+                                perror("scheduler: couldn't run scheduler.out\n");
+                                exit(EXIT_FAILURE);
+                        }
+                }
+                else {
+                        running->pid = pid;
+                }
+        }
 }
 
 /**
@@ -303,11 +299,28 @@ void RRSheduler(int quantum)
   
 }
 
+/**
+ * @brief this a handler of SIGPF signal of this process to handle
+ * when a process is finished.
+ * 
+ * @param signum SIGPF
+ */
 void ProcFinished(int signum)
 {
-  running -> state = FINISHED;
-  free(running);
-  running = NULL;
-  nproc--;
-  signal(SIGPF, ProcFinished);
+        #ifdef DEBUG
+        printf("process %d finished running at %d.\n", running->id, getClk());
+        #endif
+
+        free(running);
+        running = NULL;
+        nproc--;
+
+        //Call the scheduler again because it might be called but before running = NULL,
+        // so one tick may be missed.
+        if (schedulerType == 2) {
+                HPFSheduler();
+        }
+
+        //rebind the signal handler
+        signal(SIGPF, ProcFinished);
 }
