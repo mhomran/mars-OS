@@ -9,6 +9,6 @@ PCB* ExtractMin(struct Queue *hp);
 void DecPriority(struct Queue *hp, int i, int val);
 void InsertValue(struct Queue *hp, PCB *pc);
 void MinHeapify(struct Queue *hp, int parent);
-
+void PrintAll(struct Queue *hp);
 
 #endif

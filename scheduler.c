@@ -17,7 +17,7 @@
 struct msgbuff
 {
         long mtype;
-        char* mtext;
+        //char* mtext;
         process_t proc;
 };
 
@@ -161,7 +161,7 @@ void CreateEntry(process_t proc)
         entry->runTime = proc.runTime;
         entry->priority = proc.priority;
         entry->state = READY;
-
+        
         switch (schedulerType)
         {
         case 0:
