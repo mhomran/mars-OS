@@ -28,7 +28,7 @@ PCB *running;
 uint8_t processGenFinished;
 
 // Remaining time for current quantum
-int currQ, nproc, schedulerType;
+int currQ, nproc, schedulerType, quantum;
 
 // Functions declaration
 void ReadMSGQ(short wait);
@@ -47,13 +47,14 @@ int main(int argc, char *argv[])
 
         initClk();
 
-        if (argc < 3) {
+        if (argc < 4) {
                 perror("\n\nScheduler: Not enough argument\n");
                 exit(EXIT_FAILURE);
         }
 
         schedulerType = atoi(argv[1]);
         nproc = atoi(argv[2]);
+        quantum = atoi(argv[3]);
 
         msgqid = msgget(MSGQKEY, 0644);
         if (msgqid == -1) {
@@ -72,7 +73,7 @@ int main(int argc, char *argv[])
         // attach to shared memory of the running process
         shmRaddr = (int *)shmat(shmR_id, (void *)0, 0);
         if ((long)shmRaddr == -1) {
-                perror("Error in attaching the shm in scheduler!");
+                perror("\n\nError in attaching the shm in scheduler!\n");
                 exit(EXIT_FAILURE);
         }
 
@@ -211,43 +212,6 @@ void HPFSheduler()
 }
 
 /**
- * @brief convert an integer to a null terminated string.
- * 
- * @param number the number to convert.
- * @return char* a pointer to the converted string.
- */
-char *myItoa(int number)
-{
-  uint8_t ch;
-  int numberSize = 0;
-  char *numberStr = NULL;
-  if (number != 0)
-  {
-    while ((ch = number % 10))
-    {
-      number /= 10;
-
-      numberSize++;
-      numberStr = (char *)realloc(numberStr, numberSize);
-      numberStr[numberSize - 1] = ch + '0';
-    }
-  }
-  else
-  {
-    numberSize++;
-    numberStr = (char *)realloc(numberStr, numberSize);
-    numberStr[numberSize - 1] = '0';
-  }
-
-  //null terminate the string
-  numberSize++;
-  numberStr = (char *)realloc(numberStr, numberSize);
-  numberStr[numberSize - 1] = '\0';
-
-  return numberStr;
-}
-
-/**
  * @brief Schedule the processes using Shortest Remaining time Next
  * 
  */
@@ -323,4 +287,41 @@ void ProcFinished(int signum)
 
         //rebind the signal handler
         signal(SIGPF, ProcFinished);
+}
+
+/**
+ * @brief convert an integer to a null terminated string.
+ * 
+ * @param number the number to convert.
+ * @return char* a pointer to the converted string.
+ */
+char *myItoa(int number)
+{
+  uint8_t ch;
+  int numberSize = 0;
+  char *numberStr = NULL;
+  if (number != 0)
+  {
+    while ((ch = number % 10))
+    {
+      number /= 10;
+
+      numberSize++;
+      numberStr = (char *)realloc(numberStr, numberSize);
+      numberStr[numberSize - 1] = ch + '0';
+    }
+  }
+  else
+  {
+    numberSize++;
+    numberStr = (char *)realloc(numberStr, numberSize);
+    numberStr[numberSize - 1] = '0';
+  }
+
+  //null terminate the string
+  numberSize++;
+  numberStr = (char *)realloc(numberStr, numberSize);
+  numberStr[numberSize - 1] = '\0';
+
+  return numberStr;
 }

@@ -77,7 +77,7 @@ int main(int argc, char * argv[]) {
 	if ((schedPid = fork()) == 0) {
 		free(processes);
 
-		if (execl("build/scheduler.out", "scheduler.out", myItoa(schedOption), myItoa(numberOfProcesses), NULL) == -1) {
+		if (execl("build/scheduler.out", "scheduler.out", myItoa(schedOption), myItoa(numberOfProcesses), myItoa(quantum), NULL) == -1) {
 			perror("process_generator: couldn't run scheduler.out\n");
 			exit(EXIT_FAILURE);
 		}
