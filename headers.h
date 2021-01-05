@@ -47,9 +47,9 @@ union Semun
 
 void down(int sem)
 {
-    union Semun semun;
-    int val = semctl(sem, 0, GETVAL, semun);
-    printf("sem value is %d\n", val);
+    //union Semun semun;
+    //int val = semctl(sem, 0, GETVAL, semun);
+    //printf("sem value is %d\n", val);
 
     struct sembuf p_op;
 

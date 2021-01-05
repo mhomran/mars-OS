@@ -42,7 +42,6 @@ int main(int argc, char * argv[])
         remainingtime = *shmRemainingTimeAd;
         int curTime = getClk();
 
-        printf("remaining time is %d \n", remainingtime);
 
         while (remainingtime > 0) {
                 if (getClk() != curTime) {
