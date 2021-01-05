@@ -18,7 +18,6 @@ key_t msgqid;
 
 struct msgbuff {
     long mtype;
-    char* mtext;
     process_t proc;
 };
 
@@ -27,31 +26,29 @@ process_t* CreateProcesses(const char* fileName, int* numberOfProcesses);
 char* myItoa(int number);
 
 process_t* processes = NULL;
+int semSchedGen;
 
 int main(int argc, char * argv[]) {
 	int numberOfProcesses;
 	int schedOption;
 	int quantum;
         int curTime = -1;
-        int semSchedGen;
         union Semun semun;
-
-        
-
 	pid_t schedPid;
 
 	signal(SIGINT, clearResources);
+
 	// TODO Initialization
 	// 1. Read the input files.
 	processes = CreateProcesses("processes.txt", &numberOfProcesses);
+
 	// 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
 	printf("please enter the scheduling algorithm:\n");
 	printf("0: shortest remaining time next (SRTN)\n");
 	printf("1: Round robin (RR)\n");
 	printf("2: Non-preemptive Highest Priority First (NHPF)\n");
 
-	if ((schedOption = fgetc(stdin)) == EOF)
-	{
+	if ((schedOption = fgetc(stdin)) == EOF) {
 		fprintf(stderr, "processe generator: error when reading sched option\n");
 		exit(EXIT_FAILURE);
 	}
@@ -80,8 +77,7 @@ int main(int argc, char * argv[]) {
     	}
 	
         semSchedGen = semget(SEM_SCHED_GEN_KEY, 1, 0666 | IPC_CREAT);
-        
-        if (semSchedGen == -1){
+        if (semSchedGen == -1) {
                 perror("Error in create sem");
                 exit(-1);
         }
@@ -92,6 +88,7 @@ int main(int argc, char * argv[]) {
                 exit(-1);
         }
 
+        //fork the scheduler
 	if ((schedPid = fork()) == 0) {
 		free(processes);
 
@@ -101,6 +98,7 @@ int main(int argc, char * argv[]) {
 		}
 	}
 	
+        //for the clock
 	if (fork() == 0) {
 		free(processes);
 
@@ -111,33 +109,37 @@ int main(int argc, char * argv[]) {
 		
 	}
 	
-	// 4. Use this function after creating the clock process to initialize clock
-	initClk();
+        
+	// 4. Use this function: getClk() after creating the clock process to initialize clock
+        //attach to the clock
+        initClk();
 	
 
 	// TODO Generation Main Loop
 	// 5. Create a data structure for processes and provide it with its parameters.
-	///DONE
+	
 	while (1) {
 		
 		if (getClk() == curTime) continue;
+
 		curTime = getClk();
-		
+                printf("procGen: #%d tick.\n", curTime);
+
 		// 6. Send the information to the scheduler at the appropriate time.
 		uint8_t exitFlag = 1;
 		for(int i = 0; i < numberOfProcesses; i++) {
 			if (processes[i].arrived == 0) {
-				exitFlag = 0;
+		
+                		exitFlag = 0;
 
 				if (processes[i].arrivalTime <= curTime) {
 					processes[i].arrived = 1;
 					
 					struct msgbuff message;
-					message.mtext = NULL;
 					message.mtype = 1;
 					message.proc = processes[i];
 
-					if(msgsnd(msgqid, &message, sizeof(process_t) + sizeof(message.mtext), 0) == -1) {
+					if(msgsnd(msgqid, &message, sizeof(process_t), 0) == -1) {
 						printf("process_generator: problem in sending to msg queue\n");
 						exit(EXIT_FAILURE);
 					}
@@ -156,11 +158,18 @@ int main(int argc, char * argv[]) {
                         up(semSchedGen);
                         break;
                 }
-		//up(semSchedGen);
+                
+		up(semSchedGen);
 	}
 
-	wait(0);
-	// 7. Clear clock resources
+        int status;
+	waitpid(schedPid, &status, 0);
+        
+        #ifdef DEBUG
+        printf("process_generator: the status of the scheduler is %d\n", status >> 8);
+	#endif
+
+        // 7. Clear clock resources and terminate the group
 	destroyClk(true);
 }
 
@@ -169,6 +178,7 @@ void clearResources(int signum)
 	//TODO Clears all resources in case of interruption
 	free(processes);
     	msgctl(msgqid, IPC_RMID, (struct msqid_ds*) NULL);
+        semctl(semSchedGen, 1, IPC_RMID);
 
 	exit(EXIT_SUCCESS);
 }
