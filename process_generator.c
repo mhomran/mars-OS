@@ -29,6 +29,7 @@ process_t* processes = NULL;
 int semSchedGen;
 
 int main(int argc, char * argv[]) {
+
 	int numberOfProcesses;
 	int schedOption;
 	int quantum;
@@ -87,16 +88,6 @@ int main(int argc, char * argv[]) {
                 perror("Error in semctl");
                 exit(-1);
         }
-
-        //fork the scheduler
-	if ((schedPid = fork()) == 0) {
-		free(processes);
-
-		if (execl("build/scheduler.out", "scheduler.out", myItoa(schedOption), myItoa(numberOfProcesses), myItoa(quantum), NULL) == -1) {
-			perror("process_generator: couldn't run scheduler.out\n");
-			exit(EXIT_FAILURE);
-		}
-	}
 	
         //for the clock
 	if (fork() == 0) {
@@ -109,10 +100,20 @@ int main(int argc, char * argv[]) {
 		
 	}
 	
-        
+        initClk();
+
+        //fork the scheduler
+	if ((schedPid = fork()) == 0) {
+		free(processes);
+
+		if (execl("build/scheduler.out", "scheduler.out", myItoa(schedOption), myItoa(numberOfProcesses), myItoa(quantum), NULL) == -1) {
+			perror("process_generator: couldn't run scheduler.out\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	// 4. Use this function: getClk() after creating the clock process to initialize clock
         //attach to the clock
-        initClk();
 	
 
 	// TODO Generation Main Loop
