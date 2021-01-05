@@ -36,7 +36,6 @@ clean:
 
 .PHONY: run
 run:
-	./$(BUILD_DIR)/test_generator.out	
 	./$(BUILD_DIR)/process_generator.out
 
 .PHONY: run_valgrind
