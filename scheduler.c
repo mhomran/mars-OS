@@ -115,11 +115,15 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
         }
 
+
+        int curTime = -1;
         while (nproc) {
 
+                if (getClk() == curTime) continue;
+                curTime = getClk();
                 if (procGenFinished == 0) down(semSchedGen);
 
-                //if (running != NULL) down(semSchedProc);
+                if (running != NULL) down(semSchedProc);
                 
                 printf("scheduler: #%d tick.\n", getClk());
 
@@ -226,6 +230,7 @@ void CreateEntry(process_t proc)
         entry->runTime = proc.runTime;
         entry->priority = proc.priority;
         entry->state = READY;
+        entry->remainingTime = proc.runTime;
         
         switch (schedulerType)
         {
@@ -264,8 +269,7 @@ void HPFSheduler()
 
                 int pid;
                 if ((pid = fork()) == 0) {
-                        int rt = execl("build/process.out", "process.out", myItoa(running->id),
-                                myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
+                        int rt = execl("build/process.out", "process.out", NULL);
 
                         if (rt == -1) {
                                 perror("\n\nScheduler: couldn't run scheduler.out\n");
