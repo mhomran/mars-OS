@@ -47,6 +47,10 @@ union Semun
 
 void down(int sem)
 {
+    union Semun semun;
+    int val = semctl(sem, 0, GETVAL, semun);
+    printf("sem value is %d\n", val);
+
     struct sembuf p_op;
 
     p_op.sem_num = 0;
@@ -93,13 +97,13 @@ void initClk()
     while ((int)shmid == -1)
     {
         //Make sure that the clock exists
-        printf("Wait! The clock not initialized yet!\n");
-        sleep(1);
+        //printf("Wait! The clock not initialized yet!\n");
+        //sleep(1);
         shmid = shmget(SHKEY, 4, 0444);
     }
     shmaddr = (int *) shmat(shmid, (void *)0, 0);
 }
-
+  
 
 /*
  * All process call this function at the end to release the communication

@@ -119,8 +119,7 @@ int main(int argc, char *argv[])
 
                 if (procGenFinished == 0) down(semSchedGen);
 
-
-                if (running != NULL) down(semSchedProc);
+                //if (running != NULL) down(semSchedProc);
                 
                 printf("scheduler: #%d tick.\n", getClk());
 
