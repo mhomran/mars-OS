@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 
 typedef short bool;
 #define true 1
@@ -19,8 +20,8 @@ typedef short bool;
 #define MSGQKEY 65
 
 // semaphore keys
-#define SEM_SCHED_GEN_KEY 19
-#define SEM_SCHED_PROC_KEY 20
+#define SEM_SCHED_GEN_KEY 70
+#define SEM_SCHED_PROC_KEY 80
 
 // Process remaining time shared memory key
 #define PRSHKEY 301
@@ -54,8 +55,10 @@ void down(int sem)
 
     if (semop(sem, &p_op, 1) == -1)
     {
-        perror("Error in down()");
-        exit(-1);
+        if (errno != EINTR) {
+            perror("Error in down()");
+            exit(-1);
+        }
     }
 }
 
