@@ -119,24 +119,27 @@ int main(int argc, char *argv[])
 
                 if (procGenFinished == 0) down(semSchedGen);
 
-                printf("scheduler: #%d tick.\n", getClk());
 
                 if (running != NULL) down(semSchedProc);
                 
+                printf("scheduler: #%d tick.\n", getClk());
+
                 ReadMSGQ(0);
+                
+                if(!IsEmpty(readyQueue)) {
+                        switch (schedulerType){
+                        case 0:
+                        SRTNSheduler();
+                        break;
 
-                switch (schedulerType){
-                case 0:
-                SRTNSheduler();
-                break;
+                        case 1:
+                        RRSheduler(quantum);
+                        break;
 
-                case 1:
-                RRSheduler(quantum);
-                break;
-
-                default:
-                HPFSheduler();
-                break;
+                        default:
+                        HPFSheduler();
+                        break;
+                        }
                 }
         }
 
@@ -175,7 +178,7 @@ void ReadProcess(int signum)
 void ProcFinished(int signum)
 {
         #ifdef DEBUG
-        printf("\n\nScheduler: process %d finished running at %d.\n", running->id, getClk());
+        printf("Scheduler: process %d finished running at %d.\n", running->id, getClk());
         #endif
 
         free(running);
@@ -252,7 +255,7 @@ void HPFSheduler()
 {
         if (running == NULL) {
                 running = ExtractMin(readyQueue);
-
+                
                 #ifdef DEBUG
                 printf("process %d started running at %d.\n", running->id, getClk());
                 #endif
@@ -282,42 +285,41 @@ void HPFSheduler()
  */
 void SRTNSheduler()
 {
-  if(running)
-  {
-          PCB* nextProc = Minimum(readyQueue);
-          if(running->remainingTime > nextProc->remainingTime)  // Context Switching
-          {
-                  printf("\n\nScheduler: process %d has blocked at time %d", running->id, getClk());
-                  running->state = BLOCKED;
-                  InsertValue(readyQueue, running);
-                  kill(running->pid, SIGSLP);
-          }
-          else return;
-  }
-  else if(running == NULL || running->state == BLOCKED){
-          running = ExtractMin(readyQueue); 
-          if(running == READY){
+        if(running) {
+                PCB* nextProc = Minimum(readyQueue);
+                if(running->remainingTime > nextProc->remainingTime)  // Context Switching
+                {
+                        printf("scheduler: process %d has blocked at time %d", running->id, getClk());
+                        running->state = BLOCKED;
+                        InsertValue(readyQueue, running);
+                        kill(running->pid, SIGSLP);
+                }
+                else return;
+        }
+        else if(running == NULL || running->state == BLOCKED) {
+                running = ExtractMin(readyQueue); 
+                if(running == READY){
 
-                #ifdef DEBUG
-                printf("process %d started running at %d.\n", running->id, getClk());
-                #endif
+                        #ifdef DEBUG
+                        printf("process %d started running at %d.\n", running->id, getClk());
+                        #endif
 
-                *shmRemainingTimeAd = running ->remainingTime;
-                if(fork() == 0){
-                        int rt = execl("build/process.out", "process.out", myItoa(running->id),
-                        myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
-                        if (rt == -1)
-                        {
-                                perror("\n\nScheduler: couldn't run scheduler.out\n");
-                                exit(EXIT_FAILURE);
+                        *shmRemainingTimeAd = running ->remainingTime;
+                        if(fork() == 0){
+                                int rt = execl("build/process.out", "process.out", myItoa(running->id),
+                                myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
+                                if (rt == -1)
+                                {
+                                        perror("\n\nScheduler: couldn't run scheduler.out\n");
+                                        exit(EXIT_FAILURE);
+                                }
                         }
                 }
-          }
-          else if (running->state == BLOCKED)
-          {
-                  kill(running->pid, SIGSLP);
-          }
-  }
+                else if (running->state == BLOCKED)
+                {
+                        kill(running->pid, SIGSLP);
+                }
+        }
 }
 
 /**
