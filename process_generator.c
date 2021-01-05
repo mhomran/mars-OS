@@ -119,6 +119,8 @@ int main(int argc, char * argv[]) {
 	// TODO Generation Main Loop
 	// 5. Create a data structure for processes and provide it with its parameters.
 	
+	
+
 	while (1) {
 		
 		if (getClk() == curTime) continue;

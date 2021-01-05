@@ -29,31 +29,26 @@ int main(int argc, char * argv[])
 
         if (semSchedProc == -1)
         {
-		perror("Error in create sem");
-		exit(-1);
+            perror("Error in create sem");
+            exit(-1);
         }
 
-        if (argc < 5) {
-                perror("Process: Not enough argument\n");
-                exit(EXIT_FAILURE);
-        }
-
-        remainingtime = atoi(argv[3]);
-
+        
         initClk();
 
         //TODO it needs to get the remaining time from somewhere
         //remainingtime = ??;
-        *shmRemainingTimeAd = remainingtime;
+
+        remainingtime = *shmRemainingTimeAd;
         int curTime = getClk();
 
+        printf("remaining time is %d \n", remainingtime);
 
         while (remainingtime > 0) {
                 if (getClk() != curTime) {
                         remainingtime -= 1;
                         curTime = getClk();
                         *shmRemainingTimeAd = remainingtime;
-			
 			if (remainingtime == 0) break;
 			
 			up(semSchedProc);
