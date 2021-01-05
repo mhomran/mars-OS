@@ -18,7 +18,7 @@ key_t msgqid;
 
 struct msgbuff {
     long mtype;
-    //char* mtext;
+    char* mtext;
     process_t proc;
 };
 
@@ -32,6 +32,11 @@ int main(int argc, char * argv[]) {
 	int numberOfProcesses;
 	int schedOption;
 	int quantum;
+        int curTime = -1;
+        int semSchedGen;
+        union Semun semun;
+
+        
 
 	pid_t schedPid;
 
@@ -66,6 +71,7 @@ int main(int argc, char * argv[]) {
 
 		quantum = atoi(value);
 	}
+
 	// 3. Initiate and create the scheduler and clock processes.
 	msgqid = msgget(MSGQKEY, 0644 | IPC_CREAT);
     	if (msgqid == -1) {
@@ -73,6 +79,18 @@ int main(int argc, char * argv[]) {
 		exit(EXIT_FAILURE);
     	}
 	
+        semSchedGen = semget(SEM_SCHED_GEN_KEY, 1, 0666 | IPC_CREAT);
+        
+        if (semSchedGen == -1){
+                perror("Error in create sem");
+                exit(-1);
+        }
+
+        semun.val = 0; /* initial value of the semaphore, Binary semaphore */
+        if (semctl(semSchedGen, 0, SETVAL, semun) == -1){
+                perror("Error in semctl");
+                exit(-1);
+        }
 
 	if ((schedPid = fork()) == 0) {
 		free(processes);
@@ -95,14 +113,14 @@ int main(int argc, char * argv[]) {
 	
 	// 4. Use this function after creating the clock process to initialize clock
 	initClk();
-	int curTime = -1;
+	
 
 	// TODO Generation Main Loop
 	// 5. Create a data structure for processes and provide it with its parameters.
 	///DONE
 	while (1) {
 		
-		if (getClk() == curTime ) continue;
+		if (getClk() == curTime) continue;
 		curTime = getClk();
 		
 		// 6. Send the information to the scheduler at the appropriate time.
@@ -115,11 +133,11 @@ int main(int argc, char * argv[]) {
 					processes[i].arrived = 1;
 					
 					struct msgbuff message;
-					//message.mtext = NULL;
+					message.mtext = NULL;
 					message.mtype = 1;
 					message.proc = processes[i];
 
-					if(msgsnd(msgqid, &message, sizeof(process_t), 0) == -1) {
+					if(msgsnd(msgqid, &message, sizeof(process_t) + sizeof(message.mtext), 0) == -1) {
 						printf("process_generator: problem in sending to msg queue\n");
 						exit(EXIT_FAILURE);
 					}
@@ -133,11 +151,12 @@ int main(int argc, char * argv[]) {
 		}
 		
 		//notify the scheduler to work
-		if (kill(schedPid, SIGMSGQ) == -1) {
-			printf("processs_generator: can't send SIGMSGQ to scheduler\n");
-			exit(EXIT_FAILURE);
-		}
-		if (exitFlag == 1) break;
+		if (exitFlag == 1) {
+                        kill(SIGMSGQ, schedPid);
+                        up(semSchedGen);
+                        break;
+                }
+		//up(semSchedGen);
 	}
 
 	wait(0);

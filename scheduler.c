@@ -17,7 +17,7 @@
 struct msgbuff
 {
         long mtype;
-        //char* mtext;
+        char* mtext;
         process_t proc;
 };
 
@@ -25,7 +25,7 @@ key_t msgqid;
 int *shmRaddr;
 struct Queue *rq;
 PCB *running;
-uint8_t processGenFinished;
+int procGenFinished;
 
 // Remaining time for current quantum
 int currQ, nproc, schedulerType, quantum;
@@ -78,36 +78,60 @@ int main(int argc, char *argv[])
         }
 
 
+        union Semun semun;
+
+        
+        int semSchedGen = semget(SEM_SCHED_GEN_KEY, 1, 0666 | IPC_CREAT);
+        int semSchedProc = semget(SEM_SCHED_PROC_KEY, 1, 0666 | IPC_CREAT);
+        
+        if (semSchedProc == -1 || semSchedGen == -1){
+                perror("Error in create sem");
+                exit(-1);
+        }
+
+        semun.val = 0; /* initial value of the semaphore, Binary semaphore */
+        if (semctl(semSchedGen, 0, SETVAL, semun) == -1){
+                perror("Error in semctl");
+                exit(-1);
+        }
+
+        if (semctl(semSchedProc, 0, SETVAL, semun) == -1){
+                perror("Error in semctl");
+                exit(-1);
+        }
+
         rq = CreateQueue(RQSZ);
         running = NULL;
 
-        int currTime = 0;
-
-
+        int currTime = -1;
+        int clk;
+        printf("nproc is %d\n", nproc);
         while (nproc) {
-                // If the ready queue is empty, and still there are processes, wait
-                while (nproc && IsEmpty(rq));
+                clk =  getClk();
+                printf("clk is %d\n", clk);
+                if (clk == currTime) continue;
+                fflush(stdout);
+                printf("lol xD");
+                currTime = getClk();
+                if (!procGenFinished) down(semSchedGen);
+                
+                if (running != NULL) down(semSchedProc);
+                
+                ReadMSGQ(0);
+                switch (schedulerType){
+                case 0:
+                SRTNSheduler();
+                break;
 
-                while (!IsEmpty(rq)) {
-                        if (getClk() == currTime || processGenFinished == 0) continue;
-                        currTime = getClk();
-                        processGenFinished = 0;
+                case 1:
+                RRSheduler(quantum);
+                break;
 
-                        switch (schedulerType)
-                        {
-                        case 0:
-                        SRTNSheduler();
-                        break;
-
-                        case 1:
-                        RRSheduler(1);
-                        break;
-
-                        default:
-                        HPFSheduler();
-                        break;
-                        }
+                default:
+                HPFSheduler();
+                break;
                 }
+                
         }
 
         // upon termination release the clock resources.
@@ -126,7 +150,7 @@ void ReadMSGQ(short wait)
                 struct msgbuff msg;
 
                 // Try to recieve the new process
-                recVal = msgrcv(msgqid, &msg, sizeof(msg.proc), 0, wait ? !IPC_NOWAIT : IPC_NOWAIT); 
+                recVal = msgrcv(msgqid, &msg, sizeof(msg.proc) + sizeof(msg.mtext), 0, wait ? !IPC_NOWAIT : IPC_NOWAIT); 
                 if (recVal == -1) {
                         // If there is no process recieved then break
                         break;
@@ -144,8 +168,7 @@ void ReadMSGQ(short wait)
  */
 void ReadProcess(int signum)
 {        
-        ReadMSGQ(0);
-        processGenFinished = 1;
+        procGenFinished = 1;
 }
 
 /**
@@ -316,11 +339,6 @@ void ProcFinished(int signum)
         running = NULL;
         nproc--;
 
-        //Call the scheduler again because it might be called but before running = NULL,
-        // so one tick may be missed.
-        if (schedulerType == 2) {
-                HPFSheduler();
-        }
 
         //rebind the signal handler
         signal(SIGPF, ProcFinished);
