@@ -292,16 +292,17 @@ void SRTNSheduler()
                 PCB* nextProc = Minimum(readyQueue);
                 if(running->remainingTime > nextProc->remainingTime)  // Context Switching
                 {
-                        printf("scheduler: process %d has blocked at time %d", running->id, getClk());
+                        printf("scheduler: process %d has blocked at time %d\n", running->id, getClk());
                         running->state = BLOCKED;
                         InsertValue(readyQueue, running);
                         kill(running->pid, SIGSLP);
                 }
                 else return;
         }
-        else if(running == NULL || running->state == BLOCKED) {
+
+        if(running == NULL || running->state == BLOCKED) {
                 running = ExtractMin(readyQueue); 
-                if(running == READY){
+                if(running->state == READY){
 
                         #ifdef DEBUG
                         printf("process %d started running at %d.\n", running->id, getClk());
@@ -309,8 +310,7 @@ void SRTNSheduler()
 
                         *shmRemainingTimeAd = running ->remainingTime;
                         if(fork() == 0){
-                                int rt = execl("build/process.out", "process.out", myItoa(running->id),
-                                myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
+                                int rt = execl("build/process.out", "process.out", NULL);
                                 if (rt == -1)
                                 {
                                         perror("\n\nScheduler: couldn't run scheduler.out\n");
@@ -321,6 +321,7 @@ void SRTNSheduler()
                 else if (running->state == BLOCKED)
                 {
                         kill(running->pid, SIGSLP);
+                        running -> state = READY;
                 }
         }
 }
