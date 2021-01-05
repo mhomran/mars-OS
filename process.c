@@ -9,6 +9,7 @@ int main(int argc, char * argv[])
 {
         key_t shmR_id;
         int* shmRaddr;
+        union Semun semun;
 
         shmR_id = shmget(PRSHKEY, 4, IPC_CREAT | 0644);
         if (shmR_id == -1) {
@@ -21,6 +22,23 @@ int main(int argc, char * argv[])
                 perror("Process: Error in attaching the shm in scheduler!\n");
                 exit(EXIT_FAILURE);
         }
+
+
+        int semSchedProc = semget(SEM_SCHED_PROC_KEY, 1, 0666 | IPC_CREAT);
+
+        if (semSchedProc == -1)
+        {
+		perror("Error in create sem");
+		exit(-1);
+        }
+
+        semun.val = 0; /* initial value of the semaphore, Binary semaphore */
+        if (semctl(semSchedProc, 0, SETVAL, semun) == -1)
+        {
+            perror("Error in semctl");
+            exit(-1);
+        }
+        
 
         if (argc < 5) {
                 perror("Process: Not enough argument\n");
@@ -43,6 +61,13 @@ int main(int argc, char * argv[])
                         remainingtime -= 1;
                         curTime = getClk();
                         *shmRaddr = remainingtime;
+			
+			if (remainingtime == 0){
+				break;
+			}
+
+
+			up(semSchedProc);
                 }
                 while (blocked);
         }
@@ -53,7 +78,7 @@ int main(int argc, char * argv[])
 
         //notify the scheduler that this process is finished
         kill(getppid(), SIGPF);
-
+	up(semSchedProc);
         return 0;
 }
 
