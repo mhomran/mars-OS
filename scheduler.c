@@ -184,10 +184,11 @@ void ProcFinished(int signum)
         printf("Scheduler: process %d finished running at %d.\n", running->id, getClk());
         #endif
 
+        int stat;
+        waitpid(running->pid, &stat, 0);
         free(running);
         running = NULL;
         nproc--;
-
 
         //rebind the signal handler
         signal(SIGPF, ProcFinished);
