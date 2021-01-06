@@ -146,10 +146,6 @@ int main(int argc, char * argv[]) {
 						exit(EXIT_FAILURE);
 					}
 					
-
-					#ifdef DEBUG
-					printf("process %d arrived at %d\n", processes[i].id, curTime);
-					#endif
 				}
 			}
 		}
