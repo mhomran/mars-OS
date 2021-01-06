@@ -3,6 +3,8 @@
 /* Modify this file as needed*/
 int remainingtime;
 bool blocked = 0;
+int curTime;
+
 void SigSleepHandler(int signum);
 
 int main(int argc, char * argv[])
@@ -40,7 +42,7 @@ int main(int argc, char * argv[])
         //remainingtime = ??;
 
         remainingtime = *shmRemainingTimeAd;
-        int curTime = getClk();
+        curTime = getClk();
 
 
         while (remainingtime > 0) {
@@ -74,5 +76,9 @@ int main(int argc, char * argv[])
 void SigSleepHandler(int signum)
 {
         blocked = !blocked;
+        if (blocked == 0) curTime = getClk();
+        printf("remaining time is %d and clk is %d \n", remainingtime, getClk());
+
+        printf("blocked is %d\n", blocked);
         signal(SIGSLP, SigSleepHandler);
 }
