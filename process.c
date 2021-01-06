@@ -77,8 +77,6 @@ void SigSleepHandler(int signum)
 {
         blocked = !blocked;
         if (blocked == 0) curTime = getClk();
-        printf("remaining time is %d and clk is %d \n", remainingtime, getClk());
-
-        printf("blocked is %d\n", blocked);
+        
         signal(SIGSLP, SigSleepHandler);
 }

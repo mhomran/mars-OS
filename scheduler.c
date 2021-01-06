@@ -6,7 +6,6 @@
  * @date 2020-12-30
  */
 
-#define DEBUG
 #define RQSZ 1000
 
 #include "headers.h"
@@ -14,12 +13,18 @@
 #include "priority_queue.h"
 
 
+/**
+ * \struct 
+ * @brief struct for messages of the message queue
+ * 
+ */
 struct msgbuff
 {
         long mtype;
         process_t proc;
 };
 
+// 
 key_t mqProcesses;
 PCB *running;
 struct Queue *readyQueue;
@@ -27,7 +32,7 @@ int *shmRemainingTimeAd;
 int procGenFinished = 0;
 
 // Remaining time for current quantum
-int currQ, nproc, schedulerType, quantum;
+int currQuantum, nproc, schedulerType, quantum;
 
 // Functions declaration
 void ReadMSGQ(short wait);
@@ -122,11 +127,9 @@ int main(int argc, char *argv[])
                 if (getClk() == curTime) continue;
                 curTime = getClk();
                 if (procGenFinished == 0) down(semSchedGen);
-
                 if (running != NULL) down(semSchedProc);
                 
-                printf("scheduler: #%d tick.\n", getClk());
-
+                
                 ReadMSGQ(0);
                 
                 if(!IsEmpty(readyQueue)) {
@@ -293,11 +296,10 @@ void SRTNSheduler()
                 PCB* nextProc = Minimum(readyQueue);
                 running ->remainingTime = *shmRemainingTimeAd;
                 running ->priority = *shmRemainingTimeAd;
-                printf("current is %d and new is %d\n", running->remainingTime, nextProc->remainingTime);
-                PrintAll(readyQueue);
+
                 if(running->remainingTime > nextProc->remainingTime)  // Context Switching
                 {
-                        printf("scheduler: process %d has blocked at time %d\n", running->id, getClk());
+                        printf("scheduler: process %d is blocked at time %d\n", running->id, getClk());
                         running->state = BLOCKED;
                         InsertValue(readyQueue, running);
                         kill(running->pid, SIGSLP);
@@ -344,39 +346,46 @@ void SRTNSheduler()
 
 void RRSheduler(int quantum)
 {
-  if (running)
-  {
-    currQ--;
-    if (currQ == 0)
-    {
-      Enqueue(readyQueue, running);
-      kill(running->pid, SIGSLP);
-      running->state = BLOCKED;
-    }
-    else
-      return;
-  }
+        if (running){
+                currQuantum--;
 
-  currQ = quantum;
-  running = Dequeue(readyQueue);
-  if (running->state == READY)
-  { // Start a new process. (Fork it and give it its parameters.)
-    *shmRemainingTimeAd = running ->remainingTime;
-    if (fork() == 0)
-    {
-      int rt = execl("build/process.out", "process.out", myItoa(running->id),
-                     myItoa(running->arrivalTime), myItoa(running->runTime), myItoa(running->priority), NULL);
-      if (rt == -1)
-      {
-        perror("scheduler: couldn't run scheduler.out\n");
-        exit(EXIT_FAILURE);
-      }
-    }
-  }
-  else if (running->state == BLOCKED)
-  {
-    kill(running->pid, SIGSLP);
-  }
+                if (currQuantum == 0){
+                        Enqueue(readyQueue, running);
+                        kill(running->pid, SIGSLP);
+                        running->state = BLOCKED;
+                        #ifdef DEBUG
+                        printf("process %d is blocked at %d.\n", running->id, getClk());
+                        #endif
+                }
+                else
+                return;
+        }
+
+        currQuantum = quantum;
+        running = Dequeue(readyQueue);
+        if (running->state == READY){ 
+                // Start a new process. (Fork it and give it its parameters.)
+                int pid;
+                #ifdef DEBUG
+                printf("process %d started running at %d.\n", running->id, getClk());
+                #endif
+                *shmRemainingTimeAd = running ->remainingTime;
+                if ((pid = fork()) == 0){
+                        int rt = execl("build/process.out", "process.out", NULL);
+                        if (rt == -1){
+                                perror("scheduler: couldn't run scheduler.out\n");
+                                exit(EXIT_FAILURE);
+                        }
+                }
+                else {
+                        running -> pid = pid;
+                }
+        }
+        else if (running->state == BLOCKED){
+                kill(running->pid, SIGSLP);
+                running->state = READY;
+                printf("process %d resumed at %d.\n", running->id, getClk());
+        }
   
 }
 

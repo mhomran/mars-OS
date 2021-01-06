@@ -12,6 +12,8 @@
 #include <signal.h>
 #include <errno.h>
 
+#define DEBUG
+
 typedef short bool;
 #define true 1
 #define false 0
