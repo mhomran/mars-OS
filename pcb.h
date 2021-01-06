@@ -22,6 +22,7 @@ typedef struct
     int remainingTime;      // Remaining time to finish
     STATE state;            
     int waitingTime;        // Total time from creation to first run
+    int waitStart;          // Start time for waiting
 } PCB;
 
 #endif /* _PCB_H */

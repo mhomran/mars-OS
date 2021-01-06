@@ -8,10 +8,10 @@
 
 #define RQSZ 1000
 
+#include <math.h>
 #include "headers.h"
 #include "process_generator.h"
 #include "priority_queue.h"
-
 
 /**
  * \struct 
@@ -24,15 +24,19 @@ struct msgbuff
         process_t proc;
 };
 
-// 
+
 key_t mqProcesses;
 PCB *running;
 struct Queue *readyQueue;
 int *shmRemainingTimeAd;
 int procGenFinished = 0;
 
+FILE *outputFile;
+
 // Remaining time for current quantum
 int currQuantum, nproc, schedulerType, quantum;
+float avgWTA = 0, *WTAs, avgWaiting = 0;
+int numProcesses;
 
 // Functions declaration
 void ReadMSGQ(short wait);
@@ -57,6 +61,14 @@ int main(int argc, char *argv[])
         //attach to clock
         initClk();
 
+        // Create output file
+        outputFile = fopen("Scheduler.log", "w");
+        if (outputFile == NULL) {
+                perror("Schedular: Can not create output file\n");
+                exit(EXIT_FAILURE);
+        }
+        fprintf(outputFile, "#At time x process y state arr w total z remain y wait k\n");
+
         //initialize variables
         readyQueue = CreateQueue(RQSZ);
         running = NULL;
@@ -69,6 +81,8 @@ int main(int argc, char *argv[])
 
         schedulerType = atoi(argv[1]);
         nproc = atoi(argv[2]);
+        numProcesses = nproc;
+        WTAs = (float *)malloc(sizeof(float) * numProcesses);
         quantum = atoi(argv[3]);
 
         
@@ -76,7 +90,7 @@ int main(int argc, char *argv[])
         signal(SIGMSGQ, ReadProcess);
         signal(SIGPF, ProcFinished);
 
-
+        // message queue
         mqProcesses = msgget(MSGQKEY, 0644);
         if (mqProcesses == -1) {
                 perror("\n\nScheduler: Failed to get the message queue\n");
@@ -163,6 +177,34 @@ int main(int argc, char *argv[])
         if (shmctl(shmRemainingTime, IPC_RMID, (struct shmid_ds*) 0) == -1) {
                 perror("scheduler: can't remove remaining time schared memory \n");
         }
+        fclose(outputFile);
+
+        // Create output file
+        outputFile = fopen("Scheduler.perf", "w");
+        if (outputFile == NULL) {
+                perror("Schedular: Can not create performance file\n");
+                exit(EXIT_FAILURE);
+        }
+
+        avgWTA /= numProcesses;
+        avgWaiting /= numProcesses;
+
+        float stdDev = 0;
+        for (int i = 0; i < numProcesses; i++)
+        {
+                stdDev = pow((double) (WTAs[i] - avgWTA), 2);     
+        }
+
+        stdDev = sqrt(stdDev);        
+
+        fprintf(outputFile, "CPU utilization = 100%% \n");
+        fprintf(outputFile, "avg WTA: %g\navgWaiting:%g\nstd WTA:%g\n", round(avgWTA * 100.0) / 100.0, round(avgWaiting * 100.0) / 100.0, round(stdDev * 100.0) / 100.0);
+
+        #ifdef DEBUG
+        printf("avg WTA = %g\navgWaiting = %g\nstd WTA = %g\n", round(avgWTA * 100.0) / 100.0, round(avgWaiting * 100.0) / 100.0, round(stdDev * 100.0) / 100.0);
+        #endif
+        fclose(outputFile);
+        free(WTAs);
 }
 
 /**
@@ -183,8 +225,26 @@ void ReadProcess(int signum)
  */
 void ProcFinished(int signum)
 {
+        int ta = getClk()-running->arrivalTime;
+        float wta = ((float)ta) / running->runTime;
+        
+        avgWaiting += running->waitingTime;
+        avgWTA += wta;
+
+        WTAs[running->id - 1] = wta;
+
+        running->remainingTime = *shmRemainingTimeAd;
+        
+        
+
+        fprintf(outputFile, "At time %d process %d finished arr %d total %d remain %d wait %d TA %d WTA %g\n", 
+        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime,
+        ta, round(wta * 100.0) / 100.0);
+
         #ifdef DEBUG
-        printf("Scheduler: process %d finished running at %d.\n", running->id, getClk());
+        printf("At time %d process %d finished arr %d total %d remain %d wait %d TA %d WTA %0.2g\n", 
+        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime,
+        ta, wta);
         #endif
 
         int stat;
@@ -235,6 +295,7 @@ void CreateEntry(process_t proc)
         entry->priority = proc.priority;
         entry->state = READY;
         entry->remainingTime = proc.runTime;
+        entry->waitingTime = 0;
         
         switch (schedulerType)
         {
@@ -252,7 +313,6 @@ void CreateEntry(process_t proc)
         default:
         break;
         }
-        printf("Scheduler: process %d arrived at %d\n", entry->id, getClk());
 }
 
 /**
@@ -264,12 +324,20 @@ void HPFSheduler()
         if (running == NULL) {
                 running = ExtractMin(readyQueue);
                 
-                #ifdef DEBUG
-                printf("process %d started running at %d.\n", running->id, getClk());
-                #endif
 
                 // Start a new process. (Fork it and give it its parameters.)
                 *shmRemainingTimeAd = running->remainingTime;
+                
+                // Setting waiting time
+                running->waitingTime = getClk() - running->arrivalTime;
+
+                fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n", 
+                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+
+                #ifdef DEBUG
+                printf("At time %d process %d started arr %d total %d remain %d wait %d\n", 
+                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                #endif
 
                 int pid;
                 if ((pid = fork()) == 0) {
@@ -284,6 +352,9 @@ void HPFSheduler()
                         running->pid = pid;
                 }
         }
+        else    running->remainingTime = *shmRemainingTimeAd;
+        
+        
 }
 
 /**
@@ -299,11 +370,18 @@ void SRTNSheduler()
 
                 if(running->remainingTime > nextProc->remainingTime)  // Context Switching
                 {
-                        printf("scheduler: process %d is blocked at time %d\n", running->id, getClk());
+                        
+                        fprintf(outputFile, "At time %d process %d stopped arr %d total %d remain %d wait %d\n", 
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                        
+                        #ifdef DEBUG
+                        printf("At time %d process %d stopped arr %d total %d remain %d wait %d\n", 
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                        #endif
                         running->state = BLOCKED;
+                        running->waitStart = getClk();
                         InsertValue(readyQueue, running);
                         kill(running->pid, SIGSLP);
-                        printf("pid is %d\n", running->pid);
                 }
                 else return;
         }
@@ -313,11 +391,20 @@ void SRTNSheduler()
                 if(running->state == READY){
 
                         int pid;
-                        #ifdef DEBUG
-                        printf("process %d started running at %d.\n", running->id, getClk());
-                        #endif
 
                         *shmRemainingTimeAd = running ->remainingTime;
+                        
+                        // Setting initial waiting time
+                        running->waitingTime = getClk() - running->arrivalTime;
+                        
+                        fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n", 
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                        
+                        #ifdef DEBUG
+                        printf("At time %d process %d started arr %d total %d remain %d wait %d\n", 
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                        #endif
+                        
                         if((pid = fork()) == 0){
                                 int rt = execl("build/process.out", "process.out", NULL);
                                 if (rt == -1)
@@ -334,7 +421,15 @@ void SRTNSheduler()
                 {
                         kill(running->pid, SIGSLP);
                         running -> state = READY;
-                        printf("process %d resumed at %d.\n", running->id, getClk());
+                        running->waitingTime += getClk() - running->waitStart;
+                        
+                        fprintf(outputFile, "At time %d process %d resumed arr %d total %d remain %d wait %d\n", 
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                        
+                        #ifdef DEBUG
+                        printf("At time %d process %d resumed arr %d total %d remain %d wait %d\n", 
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                        #endif
                 }
         }
 }
@@ -348,13 +443,19 @@ void RRSheduler(int quantum)
 {
         if (running){
                 currQuantum--;
-
+                running->remainingTime = *shmRemainingTimeAd;
                 if (currQuantum == 0){
                         Enqueue(readyQueue, running);
                         kill(running->pid, SIGSLP);
                         running->state = BLOCKED;
+                        running->waitStart = getClk();
+                        
+                        fprintf(outputFile, "At time %d process %d stopped arr %d total %d remain %d wait %d\n", 
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                        
                         #ifdef DEBUG
-                        printf("process %d is blocked at %d.\n", running->id, getClk());
+                        printf("At time %d process %d stopped arr %d total %d remain %d wait %d\n", 
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
                         #endif
                 }
                 else
@@ -366,10 +467,19 @@ void RRSheduler(int quantum)
         if (running->state == READY){ 
                 // Start a new process. (Fork it and give it its parameters.)
                 int pid;
-                #ifdef DEBUG
-                printf("process %d started running at %d.\n", running->id, getClk());
-                #endif
                 *shmRemainingTimeAd = running ->remainingTime;
+                
+                // Setting initial waiting time
+                running->waitingTime = getClk() - running->arrivalTime;
+                
+                fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n", 
+                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                
+                #ifdef DEBUG
+                printf("At time %d process %d started arr %d total %d remain %d wait %d\n", 
+                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                #endif
+                
                 if ((pid = fork()) == 0){
                         int rt = execl("build/process.out", "process.out", NULL);
                         if (rt == -1){
@@ -384,7 +494,15 @@ void RRSheduler(int quantum)
         else if (running->state == BLOCKED){
                 kill(running->pid, SIGSLP);
                 running->state = READY;
-                printf("process %d resumed at %d.\n", running->id, getClk());
+                running->waitingTime += getClk() - running->waitStart;
+                
+                fprintf(outputFile, "At time %d process %d resumed arr %d total %d remain %d wait %d\n", 
+                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                
+                #ifdef DEBUG
+                printf("At time %d process %d resumed arr %d total %d remain %d wait %d\n", 
+                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                #endif
         }
   
 }
