@@ -290,12 +290,17 @@ void SRTNSheduler()
 {
         if(running) {
                 PCB* nextProc = Minimum(readyQueue);
+                running ->remainingTime = *shmRemainingTimeAd;
+                running ->priority = *shmRemainingTimeAd;
+                printf("current is %d and new is %d\n", running->remainingTime, nextProc->remainingTime);
+                PrintAll(readyQueue);
                 if(running->remainingTime > nextProc->remainingTime)  // Context Switching
                 {
                         printf("scheduler: process %d has blocked at time %d\n", running->id, getClk());
                         running->state = BLOCKED;
                         InsertValue(readyQueue, running);
                         kill(running->pid, SIGSLP);
+                        printf("pid is %d\n", running->pid);
                 }
                 else return;
         }
@@ -304,12 +309,13 @@ void SRTNSheduler()
                 running = ExtractMin(readyQueue); 
                 if(running->state == READY){
 
+                        int pid;
                         #ifdef DEBUG
                         printf("process %d started running at %d.\n", running->id, getClk());
                         #endif
 
                         *shmRemainingTimeAd = running ->remainingTime;
-                        if(fork() == 0){
+                        if((pid = fork()) == 0){
                                 int rt = execl("build/process.out", "process.out", NULL);
                                 if (rt == -1)
                                 {
@@ -317,11 +323,15 @@ void SRTNSheduler()
                                         exit(EXIT_FAILURE);
                                 }
                         }
+                        else {
+                          running -> pid = pid;
+                        }
                 }
                 else if (running->state == BLOCKED)
                 {
                         kill(running->pid, SIGSLP);
                         running -> state = READY;
+                        printf("process %d resumed at %d.\n", running->id, getClk());
                 }
         }
 }
