@@ -126,7 +126,6 @@ int main(int argc, char * argv[]) {
 		if (getClk() == curTime) continue;
 
 		curTime = getClk();
-                printf("procGen: #%d tick.\n", curTime);
 
 		// 6. Send the information to the scheduler at the appropriate time.
 		uint8_t exitFlag = 1;
@@ -157,7 +156,7 @@ int main(int argc, char * argv[]) {
 		
 		//notify the scheduler to work
 		if (exitFlag == 1) {
-                        kill(SIGMSGQ, schedPid);
+                        kill(schedPid, SIGMSGQ);
                         up(semSchedGen);
                         break;
                 }
@@ -167,7 +166,6 @@ int main(int argc, char * argv[]) {
 
         int status;
 	waitpid(schedPid, &status, 0);
-        
         #ifdef DEBUG
         printf("process_generator: the status of the scheduler is %d\n", status >> 8);
 	#endif
