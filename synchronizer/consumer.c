@@ -261,5 +261,4 @@ void InitSem(int sem, int value)
 		perror("\n\nConsumer: Error in initializing semaphore\n");
 		exit(-1);
 	}
-	printf("%d\n", value);
 }
