@@ -58,11 +58,11 @@ int main(){
 
     while(1)
     {
-        Down(&full);                   /* decrement full count */
-        Down(&mutex);                  /* enter critical region */
+        Down(full);                   /* decrement full count */
+        Down(mutex);                  /* enter critical region */
         int item = RemoverItem();      /* take item from buffer */
-        Up(&mutex);                    /* leave critical region */
-        Up(&empty);                    /* increment count of empty slots */
+        Up(mutex);                    /* leave critical region */
+        Up(empty);                    /* increment count of empty slots */
         ConsumeItem(item);
     }
 
@@ -144,7 +144,6 @@ int* InitBuff(int memsize)
 
 int CreateSem(int semkey)
 {
-    union Semun semun;
     int sem = semget(semkey, 1, 0666 | IPC_CREAT);
     if(sem == -1){
         perror("\n\nConsumer: Error in create sem\n");

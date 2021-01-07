@@ -33,8 +33,8 @@ union Semun
     void *__pad;
 };
 
-void Down(int* sem);
-void Up(int* sem);
+void Down(int sem);
+void Up(int sem);
 void Init(int buffsize);
 int* InitBuff(int memsize);
 int CreateSem(int semkey);
@@ -70,11 +70,11 @@ int main(){
     while(1)
     {
         int item = ProduceItem();      /* generate something to put in buffer */
-        Down(&empty);                  /* decrement empty count */
-        Down(&mutex);                  /* enter critical region */
+        Down(empty);                  /* decrement empty count */
+        Down(mutex);                  /* enter critical region */
         InsertItem(item);              /* put new item in buffer */
-        Up(&mutex);                    /* leave critical region */
-        Up(&full);                     /* increment count of full slots */
+        Up(mutex);                    /* leave critical region */
+        Up(full);                     /* increment count of full slots */
     }
 
     FreeResources();
@@ -83,7 +83,7 @@ int main(){
 }
 
 
-void Down(int* sem)
+void Down(int sem)
 {
     struct sembuf p_op;
 
@@ -98,7 +98,7 @@ void Down(int* sem)
     }
 }
 
-void Up(int* sem)
+void Up(int sem)
 {
     struct sembuf v_op;
 
