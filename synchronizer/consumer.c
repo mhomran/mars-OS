@@ -19,7 +19,7 @@
 #define MUTEX_SEM_KEY 500
 
 int *memsizeAddr, *buff;
-int full, empty, mutex, buffid, memsizeid;
+int full, empty, mutex, buffid, memsizeid, buffIter;
 
 /* arg for semctl system calls. */
 union Semun
@@ -39,6 +39,8 @@ int CreateSem(int semkey);
 void DestroySem(int sem);
 void FreeResources();
 void SignalHandler(int signum);
+int RemoverItem();
+void ConsumeItem(int item);
 
 int main(){
     int memsize, buffsize;
@@ -56,7 +58,12 @@ int main(){
 
     while(1)
     {
-
+        Down(&full);                   /* decrement full count */
+        Down(&mutex);                  /* enter critical region */
+        int item = RemoverItem();      /* take item from buffer */
+        Up(&mutex);                    /* leave critical region */
+        Up(&empty);                    /* increment count of empty slots */
+        ConsumeItem(item);
     }
 
     return 0;
@@ -172,4 +179,18 @@ void SignalHandler(int signum)
     printf("\n\nConsumer: terminating...\n");
     FreeResources();
     exit(0);
+}
+
+int RemoverItem()
+{
+    int item;
+    item = buff[buffIter];
+    printf("\n\nConsumer: removed item from buffer\n");
+    buffIter = (buffIter+1)%BUFSIZ;
+    return item;
+}
+
+void ConsumeItem(int item)
+{
+    printf("\n\nConsumer: consumed item: %d\n", item);
 }
