@@ -14,12 +14,14 @@
 /**
  * @brief this a type for every process read from a file
  */
-typedef struct process {
-	int id;			/**< The id of the process to use in logging*/
-	int arrivalTime;	/**< Store the time when the proccess arive */
-	int runTime;		/**< Store the runtime/bursttime of the process */
-	int priority;		/**< The priority of the process */
-	uint8_t arrived;	/**< flag to track if the process arrived or not */
+typedef struct process
+{
+	int id;			 /**< The id of the process to use in logging*/
+	int arrivalTime; /**< Store the time when the proccess arive */
+	int runTime;	 /**< Store the runtime/bursttime of the process */
+	int priority;	 /**< The priority of the process */
+	uint8_t arrived; /**< flag to track if the process arrived or not */
+	int memSize;
 } process_t;
 
 #endif /* _PROCESS_GENERATOR_H */

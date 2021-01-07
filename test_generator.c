@@ -9,11 +9,12 @@ struct processData
     int priority;
     int runningtime;
     int id;
+    int memSize;
 };
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
-    FILE * pFile;
+    FILE *pFile;
     pFile = fopen("processes.txt", "w");
     int no;
     struct processData pData;
@@ -21,9 +22,11 @@ int main(int argc, char * argv[])
     scanf("%d", &no);
     srand(time(null));
     //fprintf(pFile,"%d\n",no);
-    fprintf(pFile, "#id arrival runtime priority\n");
+    fprintf(pFile, "#id arrival runtime priority memorysize\n");
     pData.arrivaltime = 1;
-    for (int i = 1 ; i <= no ; i++)
+
+    int limit = 1024 / no;
+    for (int i = 1; i <= no; i++)
     {
         //generate Data Randomly
         //[min-max] = rand() % (max_number + 1 - minimum_number) + minimum_number
@@ -31,7 +34,9 @@ int main(int argc, char * argv[])
         pData.arrivaltime += rand() % (11); //processes arrives in order
         pData.runningtime = rand() % (30);
         pData.priority = rand() % (11);
-        fprintf(pFile, "%d\t%d\t%d\t%d\n", pData.id, pData.arrivaltime, pData.runningtime, pData.priority);
+        pData.memSize = rand() % (limit);
+
+        fprintf(pFile, "%d\t%d\t%d\t%d\t%d\n", pData.id, pData.arrivaltime, pData.runningtime, pData.priority, pData.memSize);
     }
     fclose(pFile);
 }
