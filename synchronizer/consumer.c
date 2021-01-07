@@ -12,6 +12,8 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 
+#define SHM_SIZE_KEY 3000
+
 /* arg for semctl system calls. */
 union Semun
 {
@@ -22,7 +24,7 @@ union Semun
     void *__pad;
 };
 
-void down(int sem)
+void Down(int sem)
 {
     struct sembuf p_op;
 
@@ -37,7 +39,7 @@ void down(int sem)
     }
 }
 
-void up(int sem)
+void Up(int sem)
 {
     struct sembuf v_op;
 
@@ -52,7 +54,30 @@ void up(int sem)
     }
 }
 
+int init(){
+    int shmid;
+    shmid = shmget(SHM_SIZE_KEY, sizeof(int), IPC_CREAT|0644);
+    if (shmid == -1)
+    {
+        perror("\n\nConsumer: Error in create the shared memory for buffer size\n");
+        exit(-1);
+    }
+    
+    int *shmaddr = (int *)shmat(shmid, (void *)0, 0);
+    if (shmaddr == -1)
+    {
+        perror("\n\nConsumer: Error in attach the for buffer size shared memory\n");
+        exit(-1);
+    }
+    
+    int buffsize = *shmaddr;
+    return buffsize;
+}
+
 int main(){
+    int memsize, buffsize;
+    buffsize = init();
+    memsize = buffsize*sizeof(int);
 
     return 0;
 }
