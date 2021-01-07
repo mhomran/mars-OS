@@ -24,7 +24,6 @@ struct msgbuff
         process_t proc;
 };
 
-
 key_t mqProcesses;
 PCB *running;
 struct Queue *readyQueue;
@@ -32,6 +31,7 @@ int *shmRemainingTimeAd;
 int procGenFinished = 0;
 
 FILE *outputFile;
+FILE *memoryFile;
 
 // Remaining time for current quantum
 int currQuantum, nproc, schedulerType, quantum;
@@ -62,11 +62,20 @@ int main(int argc, char *argv[])
         initClk();
 
         // Create output file
-        outputFile = fopen("Scheduler.log", "w");
-        if (outputFile == NULL) {
+        outputFile = fopen("scheduler.log", "w");
+        memoryFile = fopen("memory.log", "w");
+        if (outputFile == NULL)
+        {
                 perror("Schedular: Can not create output file\n");
                 exit(EXIT_FAILURE);
         }
+        if (memoryFile == NULL)
+        {
+                perror("[Memory]: Can not create output file for memory\n");
+                exit(EXIT_FAILURE);
+        }
+
+        fprintf(memoryFile, "#At time x allocated y bytes from process z from i to j \n");
         fprintf(outputFile, "#At time x process y state arr w total z remain y wait k\n");
 
         //initialize variables
@@ -74,7 +83,8 @@ int main(int argc, char *argv[])
         running = NULL;
 
         //parse arguments
-        if (argc < 4) {
+        if (argc < 4)
+        {
                 perror("Scheduler: Not enough argument\n");
                 exit(EXIT_FAILURE);
         }
@@ -85,43 +95,47 @@ int main(int argc, char *argv[])
         WTAs = (float *)malloc(sizeof(float) * numProcesses);
         quantum = atoi(argv[3]);
 
-        
         //bind used signals
         signal(SIGMSGQ, ReadProcess);
         signal(SIGPF, ProcFinished);
 
         // message queue
         mqProcesses = msgget(MSGQKEY, 0644);
-        if (mqProcesses == -1) {
+        if (mqProcesses == -1)
+        {
                 perror("\n\nScheduler: Failed to get the message queue\n");
                 exit(EXIT_FAILURE);
         }
 
-        // shared memory remaining time 
+        // shared memory remaining time
         key_t shmRemainingTime = shmget(PRSHKEY, 4, IPC_CREAT | 0644);
-        if (shmRemainingTime == -1) {
+        if (shmRemainingTime == -1)
+        {
                 perror("Scheduler: Failed to get the shared memory\n");
                 exit(EXIT_FAILURE);
         }
 
         // attach to it
         shmRemainingTimeAd = (int *)shmat(shmRemainingTime, (void *)0, 0);
-        if ((long)shmRemainingTimeAd == -1) {
+        if ((long)shmRemainingTimeAd == -1)
+        {
                 perror("\n\nError in attaching the shm in scheduler!\n");
                 exit(EXIT_FAILURE);
         }
-        
+
         //Semaphore semSchedProc
         int semSchedProc = semget(SEM_SCHED_PROC_KEY, 1, 0666 | IPC_CREAT);
 
-        if (semSchedProc == -1){
+        if (semSchedProc == -1)
+        {
                 perror("Error in create sem");
                 exit(EXIT_FAILURE);
         }
 
         union Semun semun;
         semun.val = 0;
-        if (semctl(semSchedProc, 0, SETVAL, semun) == -1){
+        if (semctl(semSchedProc, 0, SETVAL, semun) == -1)
+        {
                 perror("Error in semctl");
                 exit(-1);
         }
@@ -129,59 +143,67 @@ int main(int argc, char *argv[])
         //Semaphore semSchedGen
         int semSchedGen = semget(SEM_SCHED_GEN_KEY, 1, 0666);
 
-        if (semSchedGen == -1){
+        if (semSchedGen == -1)
+        {
                 perror("Error in create sem");
                 exit(EXIT_FAILURE);
         }
 
-
         int curTime = -1;
-        while (nproc) {
+        while (nproc)
+        {
 
-                if (getClk() == curTime) continue;
+                if (getClk() == curTime)
+                        continue;
                 curTime = getClk();
-                if (procGenFinished == 0) down(semSchedGen);
-                if (running != NULL) down(semSchedProc);
-                
-                
+                if (procGenFinished == 0)
+                        down(semSchedGen);
+                if (running != NULL)
+                        down(semSchedProc);
+
                 ReadMSGQ(0);
-                
-                if(!IsEmpty(readyQueue)) {
-                        switch (schedulerType){
+
+                if (!IsEmpty(readyQueue))
+                {
+                        switch (schedulerType)
+                        {
                         case 0:
-                        SRTNSheduler();
-                        break;
+                                SRTNSheduler();
+                                break;
 
                         case 1:
-                        RRSheduler(quantum);
-                        break;
+                                RRSheduler(quantum);
+                                break;
 
                         default:
-                        HPFSheduler();
-                        break;
+                                HPFSheduler();
+                                break;
                         }
                 }
         }
 
-
         // upon termination release the clock resources.
         destroyClk(false);
-        if (semctl(semSchedProc, 1, IPC_RMID) == -1) {
+        if (semctl(semSchedProc, 1, IPC_RMID) == -1)
+        {
                 perror("scheduler: can't remove semaphore semSchedProc \n");
         }
 
-        if (shmdt(shmRemainingTimeAd) == -1) {
-              printf("scheduler: error in detaching a shared memory\n");  
+        if (shmdt(shmRemainingTimeAd) == -1)
+        {
+                printf("scheduler: error in detaching a shared memory\n");
         }
 
-        if (shmctl(shmRemainingTime, IPC_RMID, (struct shmid_ds*) 0) == -1) {
+        if (shmctl(shmRemainingTime, IPC_RMID, (struct shmid_ds *)0) == -1)
+        {
                 perror("scheduler: can't remove remaining time schared memory \n");
         }
         fclose(outputFile);
 
         // Create output file
-        outputFile = fopen("Scheduler.perf", "w");
-        if (outputFile == NULL) {
+        outputFile = fopen("scheduler.perf", "w");
+        if (outputFile == NULL)
+        {
                 perror("Schedular: Can not create performance file\n");
                 exit(EXIT_FAILURE);
         }
@@ -192,18 +214,19 @@ int main(int argc, char *argv[])
         float stdDev = 0;
         for (int i = 0; i < numProcesses; i++)
         {
-                stdDev = pow((double) (WTAs[i] - avgWTA), 2);     
+                stdDev = pow((double)(WTAs[i] - avgWTA), 2);
         }
 
-        stdDev = sqrt(stdDev);        
+        stdDev = sqrt(stdDev);
 
         fprintf(outputFile, "CPU utilization = 100%% \n");
         fprintf(outputFile, "avg WTA: %g\navgWaiting:%g\nstd WTA:%g\n", round(avgWTA * 100.0) / 100.0, round(avgWaiting * 100.0) / 100.0, round(stdDev * 100.0) / 100.0);
 
-        #ifdef DEBUG
+#ifdef DEBUG
         printf("avg WTA = %g\navgWaiting = %g\nstd WTA = %g\n", round(avgWTA * 100.0) / 100.0, round(avgWaiting * 100.0) / 100.0, round(stdDev * 100.0) / 100.0);
-        #endif
+#endif
         fclose(outputFile);
+        fclose(memoryFile);
         free(WTAs);
 }
 
@@ -213,7 +236,7 @@ int main(int argc, char *argv[])
  * @param signum SIGUSR flag
  */
 void ReadProcess(int signum)
-{        
+{
         procGenFinished = 1;
 }
 
@@ -225,27 +248,31 @@ void ReadProcess(int signum)
  */
 void ProcFinished(int signum)
 {
-        int ta = getClk()-running->arrivalTime;
+        int ta = getClk() - running->arrivalTime;
         float wta = ((float)ta) / running->runTime;
-        
+
         avgWaiting += running->waitingTime;
         avgWTA += wta;
 
         WTAs[running->id - 1] = wta;
 
         running->remainingTime = *shmRemainingTimeAd;
-        
-        
 
-        fprintf(outputFile, "At time %d process %d finished arr %d total %d remain %d wait %d TA %d WTA %g\n", 
-        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime,
-        ta, round(wta * 100.0) / 100.0);
+#ifdef DEBUG
+        printf("At time %d freed %d bytes from process %d from %d to %d \n", getClk(), running->memoryNode->data, running->id, running->memoryNode->start, running->memoryNode->end);
+#endif
+        fprintf(memoryFile, "At time %d freed %d bytes from process %d from %d to %d \n", getClk(), running->memoryNode->data, running->id, running->memoryNode->start, running->memoryNode->end);
+        Deallocate(running->memoryNode);
 
-        #ifdef DEBUG
-        printf("At time %d process %d finished arr %d total %d remain %d wait %d TA %d WTA %0.2g\n", 
-        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime,
-        ta, wta);
-        #endif
+        fprintf(outputFile, "At time %d process %d finished arr %d total %d remain %d wait %d TA %d WTA %g\n",
+                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime,
+                ta, round(wta * 100.0) / 100.0);
+
+#ifdef DEBUG
+        printf("At time %d process %d finished arr %d total %d remain %d wait %d TA %d WTA %0.2g\n",
+               getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime,
+               ta, wta);
+#endif
 
         int stat;
         waitpid(running->pid, &stat, 0);
@@ -264,13 +291,15 @@ void ProcFinished(int signum)
  */
 void ReadMSGQ(short wait)
 {
-        while (1) {
+        while (1)
+        {
                 int recVal;
                 struct msgbuff msg;
 
                 // Try to recieve the new process
-                recVal = msgrcv(mqProcesses, &msg, sizeof(msg.proc), 0, wait ? !IPC_NOWAIT : IPC_NOWAIT); 
-                if (recVal == -1) {
+                recVal = msgrcv(mqProcesses, &msg, sizeof(msg.proc), 0, wait ? !IPC_NOWAIT : IPC_NOWAIT);
+                if (recVal == -1)
+                {
                         // If there is no process recieved then break
                         break;
                 }
@@ -279,7 +308,6 @@ void ReadMSGQ(short wait)
                 CreateEntry(msg.proc);
         }
 }
-
 
 /**
  * @brief Create a PCB object and insert it in the ready queue
@@ -296,23 +324,29 @@ void CreateEntry(process_t proc)
         entry->state = READY;
         entry->remainingTime = proc.runTime;
         entry->waitingTime = 0;
-        
+        entry->memoryNode = Allocate(proc.memSize);
+
         switch (schedulerType)
         {
         case 0:
-        entry->priority = entry->remainingTime;
-        InsertValue(readyQueue, entry);
-        // if(running) SRTNSheduler();  // Should be called again to check that the current runnning proc is the SRTN
-        break;
+                entry->priority = entry->remainingTime;
+                InsertValue(readyQueue, entry);
+                // if(running) SRTNSheduler();  // Should be called again to check that the current runnning proc is the SRTN
+                break;
         case 1:
-        Enqueue(readyQueue, entry);
-        break;
+                Enqueue(readyQueue, entry);
+                break;
         case 2:
-        InsertValue(readyQueue, entry);
-        break;
+                InsertValue(readyQueue, entry);
+                break;
         default:
-        break;
+                break;
         }
+
+#ifdef DEBUG
+        printf("At time %d allocated %d bytes for process %d from %d to %d \n", getClk(), entry->memoryNode->data, entry->id, entry->memoryNode->start, entry->memoryNode->end);
+#endif
+        fprintf(memoryFile, "At time %d allocated %d bytes for process %d from %d to %d \n", getClk(), entry->memoryNode->data, entry->id, entry->memoryNode->start, entry->memoryNode->end);
 }
 
 /**
@@ -321,40 +355,42 @@ void CreateEntry(process_t proc)
  */
 void HPFSheduler()
 {
-        if (running == NULL) {
+        if (running == NULL)
+        {
                 running = ExtractMin(readyQueue);
-                
 
                 // Start a new process. (Fork it and give it its parameters.)
                 *shmRemainingTimeAd = running->remainingTime;
-                
+
                 // Setting waiting time
                 running->waitingTime = getClk() - running->arrivalTime;
 
-                fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n", 
-                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+                fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n",
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
 
-                #ifdef DEBUG
-                printf("At time %d process %d started arr %d total %d remain %d wait %d\n", 
-                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                #endif
+#ifdef DEBUG
+                printf("At time %d process %d started arr %d total %d remain %d wait %d\n",
+                       getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+#endif
 
                 int pid;
-                if ((pid = fork()) == 0) {
+                if ((pid = fork()) == 0)
+                {
                         int rt = execl("build/process.out", "process.out", NULL);
 
-                        if (rt == -1) {
+                        if (rt == -1)
+                        {
                                 perror("\n\nScheduler: couldn't run scheduler.out\n");
                                 exit(EXIT_FAILURE);
                         }
                 }
-                else {
+                else
+                {
                         running->pid = pid;
                 }
         }
-        else    running->remainingTime = *shmRemainingTimeAd;
-        
-        
+        else
+                running->remainingTime = *shmRemainingTimeAd;
 }
 
 /**
@@ -363,49 +399,54 @@ void HPFSheduler()
  */
 void SRTNSheduler()
 {
-        if(running) {
-                PCB* nextProc = Minimum(readyQueue);
-                running ->remainingTime = *shmRemainingTimeAd;
-                running ->priority = *shmRemainingTimeAd;
+        if (running)
+        {
+                PCB *nextProc = Minimum(readyQueue);
+                running->remainingTime = *shmRemainingTimeAd;
+                running->priority = *shmRemainingTimeAd;
 
-                if(running->remainingTime > nextProc->remainingTime)  // Context Switching
+                if (running->remainingTime > nextProc->remainingTime) // Context Switching
                 {
-                        
-                        fprintf(outputFile, "At time %d process %d stopped arr %d total %d remain %d wait %d\n", 
-                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                        
-                        #ifdef DEBUG
-                        printf("At time %d process %d stopped arr %d total %d remain %d wait %d\n", 
-                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                        #endif
+
+                        fprintf(outputFile, "At time %d process %d stopped arr %d total %d remain %d wait %d\n",
+                                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+
+#ifdef DEBUG
+                        printf("At time %d process %d stopped arr %d total %d remain %d wait %d\n",
+                               getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+#endif
                         running->state = BLOCKED;
                         running->waitStart = getClk();
                         InsertValue(readyQueue, running);
                         kill(running->pid, SIGSLP);
                 }
-                else return;
+                else
+                        return;
         }
 
-        if(running == NULL || running->state == BLOCKED) {
-                running = ExtractMin(readyQueue); 
-                if(running->state == READY){
+        if (running == NULL || running->state == BLOCKED)
+        {
+                running = ExtractMin(readyQueue);
+                if (running->state == READY)
+                {
 
                         int pid;
 
-                        *shmRemainingTimeAd = running ->remainingTime;
-                        
+                        *shmRemainingTimeAd = running->remainingTime;
+
                         // Setting initial waiting time
                         running->waitingTime = getClk() - running->arrivalTime;
-                        
-                        fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n", 
-                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                        
-                        #ifdef DEBUG
-                        printf("At time %d process %d started arr %d total %d remain %d wait %d\n", 
-                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                        #endif
-                        
-                        if((pid = fork()) == 0){
+
+                        fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n",
+                                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+
+#ifdef DEBUG
+                        printf("At time %d process %d started arr %d total %d remain %d wait %d\n",
+                               getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+#endif
+
+                        if ((pid = fork()) == 0)
+                        {
                                 int rt = execl("build/process.out", "process.out", NULL);
                                 if (rt == -1)
                                 {
@@ -413,23 +454,24 @@ void SRTNSheduler()
                                         exit(EXIT_FAILURE);
                                 }
                         }
-                        else {
-                          running -> pid = pid;
+                        else
+                        {
+                                running->pid = pid;
                         }
                 }
                 else if (running->state == BLOCKED)
                 {
                         kill(running->pid, SIGSLP);
-                        running -> state = READY;
+                        running->state = READY;
                         running->waitingTime += getClk() - running->waitStart;
-                        
-                        fprintf(outputFile, "At time %d process %d resumed arr %d total %d remain %d wait %d\n", 
-                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                        
-                        #ifdef DEBUG
-                        printf("At time %d process %d resumed arr %d total %d remain %d wait %d\n", 
-                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                        #endif
+
+                        fprintf(outputFile, "At time %d process %d resumed arr %d total %d remain %d wait %d\n",
+                                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+
+#ifdef DEBUG
+                        printf("At time %d process %d resumed arr %d total %d remain %d wait %d\n",
+                               getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+#endif
                 }
         }
 }
@@ -441,72 +483,77 @@ void SRTNSheduler()
 
 void RRSheduler(int quantum)
 {
-        if (running){
+        if (running)
+        {
                 currQuantum--;
                 running->remainingTime = *shmRemainingTimeAd;
-                if (currQuantum == 0){
+                if (currQuantum == 0)
+                {
                         Enqueue(readyQueue, running);
                         kill(running->pid, SIGSLP);
                         running->state = BLOCKED;
                         running->waitStart = getClk();
-                        
-                        fprintf(outputFile, "At time %d process %d stopped arr %d total %d remain %d wait %d\n", 
-                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                        
-                        #ifdef DEBUG
-                        printf("At time %d process %d stopped arr %d total %d remain %d wait %d\n", 
-                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                        #endif
+
+                        fprintf(outputFile, "At time %d process %d stopped arr %d total %d remain %d wait %d\n",
+                                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+
+#ifdef DEBUG
+                        printf("At time %d process %d stopped arr %d total %d remain %d wait %d\n",
+                               getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+#endif
                 }
                 else
-                return;
+                        return;
         }
 
         currQuantum = quantum;
         running = Dequeue(readyQueue);
-        if (running->state == READY){ 
+        if (running->state == READY)
+        {
                 // Start a new process. (Fork it and give it its parameters.)
                 int pid;
-                *shmRemainingTimeAd = running ->remainingTime;
-                
+                *shmRemainingTimeAd = running->remainingTime;
+
                 // Setting initial waiting time
                 running->waitingTime = getClk() - running->arrivalTime;
-                
-                fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n", 
-                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                
-                #ifdef DEBUG
-                printf("At time %d process %d started arr %d total %d remain %d wait %d\n", 
-                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                #endif
-                
-                if ((pid = fork()) == 0){
+
+                fprintf(outputFile, "At time %d process %d started arr %d total %d remain %d wait %d\n",
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+
+#ifdef DEBUG
+                printf("At time %d process %d started arr %d total %d remain %d wait %d\n",
+                       getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+#endif
+
+                if ((pid = fork()) == 0)
+                {
                         int rt = execl("build/process.out", "process.out", NULL);
-                        if (rt == -1){
+                        if (rt == -1)
+                        {
                                 perror("scheduler: couldn't run scheduler.out\n");
                                 exit(EXIT_FAILURE);
                         }
                 }
-                else {
-                        running -> pid = pid;
+                else
+                {
+                        running->pid = pid;
                 }
         }
-        else if (running->state == BLOCKED){
+        else if (running->state == BLOCKED)
+        {
                 kill(running->pid, SIGSLP);
                 running->state = READY;
                 running->waitingTime += getClk() - running->waitStart;
-                
-                fprintf(outputFile, "At time %d process %d resumed arr %d total %d remain %d wait %d\n", 
-                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                
-                #ifdef DEBUG
-                printf("At time %d process %d resumed arr %d total %d remain %d wait %d\n", 
-                getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
-                #endif
-        }
-  
-}
 
+                fprintf(outputFile, "At time %d process %d resumed arr %d total %d remain %d wait %d\n",
+                        getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+
+#ifdef DEBUG
+                printf("At time %d process %d resumed arr %d total %d remain %d wait %d\n",
+                       getClk(), running->id, running->arrivalTime, running->runTime, running->remainingTime, running->waitingTime);
+#endif
+        }
+}
 
 /**
  * @brief convert an integer to a null terminated string.
@@ -516,31 +563,31 @@ void RRSheduler(int quantum)
  */
 char *myItoa(int number)
 {
-  uint8_t ch;
-  int numberSize = 0;
-  char *numberStr = NULL;
-  if (number != 0)
-  {
-    while ((ch = number % 10))
-    {
-      number /= 10;
+        uint8_t ch;
+        int numberSize = 0;
+        char *numberStr = NULL;
+        if (number != 0)
+        {
+                while ((ch = number % 10))
+                {
+                        number /= 10;
 
-      numberSize++;
-      numberStr = (char *)realloc(numberStr, numberSize);
-      numberStr[numberSize - 1] = ch + '0';
-    }
-  }
-  else
-  {
-    numberSize++;
-    numberStr = (char *)realloc(numberStr, numberSize);
-    numberStr[numberSize - 1] = '0';
-  }
+                        numberSize++;
+                        numberStr = (char *)realloc(numberStr, numberSize);
+                        numberStr[numberSize - 1] = ch + '0';
+                }
+        }
+        else
+        {
+                numberSize++;
+                numberStr = (char *)realloc(numberStr, numberSize);
+                numberStr[numberSize - 1] = '0';
+        }
 
-  //null terminate the string
-  numberSize++;
-  numberStr = (char *)realloc(numberStr, numberSize);
-  numberStr[numberSize - 1] = '\0';
+        //null terminate the string
+        numberSize++;
+        numberStr = (char *)realloc(numberStr, numberSize);
+        numberStr[numberSize - 1] = '\0';
 
-  return numberStr;
+        return numberStr;
 }
