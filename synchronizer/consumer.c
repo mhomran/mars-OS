@@ -13,6 +13,7 @@
 #include <sys/file.h>
 
 #define SHM_SIZE_KEY 3000
+#define SHM_BUFF_KEY 4000
 
 /* arg for semctl system calls. */
 union Semun
@@ -54,7 +55,7 @@ void Up(int sem)
     }
 }
 
-int init(){
+int Init(){
     int shmid;
     shmid = shmget(SHM_SIZE_KEY, sizeof(int), IPC_CREAT|0644);
     if (shmid == -1)
@@ -74,10 +75,36 @@ int init(){
     return buffsize;
 }
 
+int* InitBuff(int memsize){
+    int shmid;
+    shmid = shmget(SHM_BUFF_KEY, memsize, IPC_CREAT|0644);
+    if (shmid == -1)
+    {
+        perror("\n\nConsumer: Error in create the shared memory for buffer size\n");
+        exit(-1);
+    }
+    else printf("\n\nConsumer: Buffer id: %d\n", shmid);
+    
+    int* buff;
+    buff = (int *)shmat(shmid, (void *)0, 0);
+    if (buff == -1)
+    {
+        perror("\n\nConsumer: Error in attach the for buffer\n");
+        exit(-1);
+    }
+    else printf("\n\nConsumer: Buffer attached successfuly\n");
+
+    return buff;
+    
+}
+
 int main(){
     int memsize, buffsize;
-    buffsize = init();
+    
+    buffsize = Init();
     memsize = buffsize*sizeof(int);
+
+    int* buff = InitBuff(memsize);
 
     return 0;
 }
