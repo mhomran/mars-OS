@@ -14,6 +14,13 @@
 
 #define SHM_SIZE_KEY 3000
 #define SHM_BUFF_KEY 4000
+#define FULL_SEM_KEY 300
+#define EMPTY_SEM_KEY 400
+#define MUTEX_SEM_KEY 500
+
+
+int *memsizeAddr, *buff;
+int full, empty, mutex, buffid, memsizeid;
 
 /* arg for semctl system calls. */
 union Semun
@@ -24,6 +31,41 @@ union Semun
     struct seminfo *__buf; /* buffer for IPC_INFO */
     void *__pad;
 };
+
+void Down(int sem);
+void Up(int sem);
+void Init(int buffsize);
+int* InitBuff(int memsize);
+int CreateSem(int semkey);
+void DestroySem(int sem);
+void FreeResources();
+
+int main(){
+    int buffsize;
+    int memsize;
+
+    printf("\n\nProducer: please enter the buffer size: ");
+    scanf("%d", &buffsize);
+    if(buffsize <= 0){
+        perror("\n\nProducer: invalid buffer size\n");
+        exit(-1);
+    }
+    buffsize--;
+    memsize = buffsize*sizeof(int);
+
+    Init(buffsize);
+
+    buff = InitBuff(memsize);
+
+    full = CreateSem(FULL_SEM_KEY);
+    empty = CreateSem(FULL_SEM_KEY);
+    mutex = CreateSem(FULL_SEM_KEY);
+
+    FreeResources();
+    
+    return 0;
+}
+
 
 void Down(int sem)
 {
@@ -55,37 +97,37 @@ void Up(int sem)
     }
 }
 
-void Init(int buffsize){
-    int shmid;
-    shmid = shmget(SHM_SIZE_KEY, sizeof(int), IPC_CREAT|0644);
-    if (shmid == -1)
+void Init(int buffsize)
+{
+    memsizeid = shmget(SHM_SIZE_KEY, sizeof(int), IPC_CREAT|0644);
+    if (memsizeid == -1)
     {
         perror("\n\nProducer: Error in create the shared memory for buffer size\n");
         exit(-1);
     }
     
-    int *shmaddr = (int *)shmat(shmid, (void *)0, 0);
-    if (shmaddr == -1)
+    memsizeAddr = (int *)shmat(memsizeid, (void *)0, 0);
+    if (memsizeAddr == -1)
     {
         perror("\n\nProducer: Error in attach the for buffer size shared memory\n");
         exit(-1);
     }
     
-    *shmaddr = buffsize;
+    *memsizeAddr = buffsize;
 }
 
-int* InitBuff(int memsize){
-    int shmid;
-    shmid = shmget(SHM_BUFF_KEY, memsize, IPC_CREAT|0644);
-    if (shmid == -1)
+int* InitBuff(int memsize)
+{
+    buffid = shmget(SHM_BUFF_KEY, memsize, IPC_CREAT|0644);
+    if (buffid == -1)
     {
         perror("\n\nProducer: Error in create the shared memory for buffer size\n");
         exit(-1);
     }
-    else printf("\n\nProducer: Buffer id: %d\n", shmid);
+    else printf("\n\nProducer: Buffer id: %d\n", buffid);
     
     int* buff;
-    buff = (int *)shmat(shmid, (void *)0, 0);
+    buff = (int *)shmat(buffid, (void *)0, 0);
     if (buff == -1)
     {
         perror("\n\nProducer: Error in attach the for buffer\n");
@@ -97,22 +139,33 @@ int* InitBuff(int memsize){
     
 }
 
-int main(){
-    int buffsize;
-    int memsize;
-
-    printf("\n\nProducer: please enter the buffer size: ");
-    scanf("%d", &buffsize);
-    if(buffsize <= 0){
-        perror("\n\nProducer: invalid buffer size\n");
+int CreateSem(int semkey)
+{
+    int sem = semget(semkey, 1, 0666 | IPC_CREAT);
+    if(sem == -1){
+        perror("\n\nProducer: Error in create sem\n");
         exit(-1);
     }
-    buffsize--;
-    memsize = buffsize*sizeof(int);
+    return sem;
+}
 
-    Init(buffsize);
+void DestroySem(int sem)
+{
+    if(semctl(sem, 0, IPC_RMID) == -1){
+        perror("\n\nProducer: Error in destroy sem\n");
+        exit(-1);
+    }
+}
 
-    int* buff = InitBuff(memsize);
+void FreeResources()
+{
+    shmdt((void*)buff);
+    shmdt((void*)memsizeAddr);
 
-    return 0;
+    DestroySem(full);
+    DestroySem(empty);
+    DestroySem(mutex);
+
+    shmctl(memsizeid, IPC_RMID, NULL);
+    shmctl(buffid, IPC_RMID, NULL);
 }
