@@ -52,4 +52,3 @@ run_valgrind:
 .PHONY: generate_test
 generate_test:
 	./$(BUILD_DIR)/test_generator.out
-
