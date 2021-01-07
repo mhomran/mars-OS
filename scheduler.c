@@ -325,28 +325,38 @@ void CreateEntry(process_t proc)
         entry->remainingTime = proc.runTime;
         entry->waitingTime = 0;
         entry->memoryNode = Allocate(proc.memSize);
-
-        switch (schedulerType)
+        if (entry->memoryNode == NULL)
         {
-        case 0:
-                entry->priority = entry->remainingTime;
-                InsertValue(readyQueue, entry);
-                // if(running) SRTNSheduler();  // Should be called again to check that the current runnning proc is the SRTN
-                break;
-        case 1:
-                Enqueue(readyQueue, entry);
-                break;
-        case 2:
-                InsertValue(readyQueue, entry);
-                break;
-        default:
-                break;
+#ifdef DEBUG
+                printf("----- At time %d couldn't allocate %d bytes for process %d ------ \n", getClk(), proc.memSize, entry->id);
+#endif
+                free(entry);
+                nproc--;
         }
+        else
+        {
+                switch (schedulerType)
+                {
+                case 0:
+                        entry->priority = entry->remainingTime;
+                        InsertValue(readyQueue, entry);
+                        // if(running) SRTNSheduler();  // Should be called again to check that the current runnning proc is the SRTN
+                        break;
+                case 1:
+                        Enqueue(readyQueue, entry);
+                        break;
+                case 2:
+                        InsertValue(readyQueue, entry);
+                        break;
+                default:
+                        break;
+                }
 
 #ifdef DEBUG
-        printf("At time %d allocated %d bytes for process %d from %d to %d \n", getClk(), entry->memoryNode->data, entry->id, entry->memoryNode->start, entry->memoryNode->end);
+                printf("At time %d allocated %d bytes for process %d from %d to %d \n", getClk(), entry->memoryNode->data, entry->id, entry->memoryNode->start, entry->memoryNode->end);
 #endif
-        fprintf(memoryFile, "At time %d allocated %d bytes for process %d from %d to %d \n", getClk(), entry->memoryNode->data, entry->id, entry->memoryNode->start, entry->memoryNode->end);
+                fprintf(memoryFile, "At time %d allocated %d bytes for process %d from %d to %d \n", getClk(), entry->memoryNode->data, entry->id, entry->memoryNode->start, entry->memoryNode->end);
+        }
 }
 
 /**
