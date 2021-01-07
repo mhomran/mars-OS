@@ -21,7 +21,7 @@
 
 
 int *memsizeAddr, *buff;
-int full, empty, mutex, buffid, memsizeid, buffIter;
+int full, empty, mutex, buffid, memsizeid, buffIter, buffsize;
 
 /* arg for semctl system calls. */
 union Semun
@@ -43,9 +43,9 @@ void FreeResources();
 void SignalHandler(int signum);
 int ProduceItem();
 void InsertItem(int item);
+void InitSem(int sem, int value);
 
 int main(){
-    int buffsize;
     int memsize;
 
     printf("\n\nProducer: please enter the buffer size: ");
@@ -54,7 +54,6 @@ int main(){
         perror("\n\nProducer: invalid buffer size\n");
         exit(-1);
     }
-    buffsize--;
     memsize = buffsize*sizeof(int);
 
     Init(buffsize);
@@ -62,17 +61,21 @@ int main(){
     buff = InitBuff(memsize);
 
     full = CreateSem(FULL_SEM_KEY);
-    empty = CreateSem(FULL_SEM_KEY);
-    mutex = CreateSem(FULL_SEM_KEY);
+    empty = CreateSem(EMPTY_SEM_KEY);
+    mutex = CreateSem(MUTEX_SEM_KEY);
+
+    InitSem(full, 0);
+    InitSem(empty, buffsize);
+    InitSem(mutex, 1);
 
     signal(SIGINT, SignalHandler);
 
-    while(1)
+    for(int i=0; i<20; i++)
     {
         int item = ProduceItem();      /* generate something to put in buffer */
         Down(empty);                  /* decrement empty count */
         Down(mutex);                  /* enter critical region */
-        InsertItem(item);              /* put new item in buffer */
+        InsertItem(item);             /* put new item in buffer */
         Up(mutex);                    /* leave critical region */
         Up(full);                     /* increment count of full slots */
     }
@@ -178,12 +181,12 @@ void FreeResources()
     shmdt((void*)buff);
     shmdt((void*)memsizeAddr);
 
-    DestroySem(full);
-    DestroySem(empty);
-    DestroySem(mutex);
+    // DestroySem(full);
+    // DestroySem(empty);
+    // DestroySem(mutex);
 
-    shmctl(memsizeid, IPC_RMID, NULL);
-    shmctl(buffid, IPC_RMID, NULL);
+    // shmctl(memsizeid, IPC_RMID, NULL);
+    // shmctl(buffid, IPC_RMID, NULL);
 }
 
 void SignalHandler(int signum)
@@ -197,12 +200,24 @@ int ProduceItem()
 {
     printf("\n\nProducer: generating something to put in buffer...\n");
     srand(time(0));
-    return rand();
+    return rand()%11;
 }
 
 void InsertItem(int item)
 {
     buff[buffIter] = item;
     printf("\n\nProducer: inserted %d in the buffer at location: %d\n", item, buffIter);
-    buffIter = (buffIter+1)%BUFSIZ;
+    buffIter = (buffIter+1)%buffsize;
+}
+
+void InitSem(int sem, int value)
+{
+    union Semun semun;
+    semun.val = value; /* initial value of the semaphore, Binary semaphore */
+    if (semctl(sem, 0, SETVAL, semun) == -1)
+    {
+        perror("\n\nProducer: Error in initializing semaphore\n");
+        exit(-1);
+    }
+    // printf("%d\n", value);
 }
