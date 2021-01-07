@@ -38,6 +38,7 @@ int* InitBuff(int memsize);
 int CreateSem(int semkey);
 void DestroySem(int sem);
 void FreeResources();
+void SignalHandler(int signum);
 
 int main(){
     int memsize, buffsize;
@@ -50,6 +51,13 @@ int main(){
     full = CreateSem(FULL_SEM_KEY);
     empty = CreateSem(FULL_SEM_KEY);
     mutex = CreateSem(FULL_SEM_KEY);
+
+    signal(SIGINT, SignalHandler);
+
+    while(true)
+    {
+        
+    }
 
     return 0;
 }
@@ -157,4 +165,11 @@ void FreeResources()
 
     shmctl(memsizeid, IPC_RMID, NULL);
     shmctl(buffid, IPC_RMID, NULL);
+}
+
+void SignalHandler(int signum)
+{
+    printf("\n\nConsumer: terminating...\n");
+    FreeResources();
+    exit(0);
 }
