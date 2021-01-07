@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include<time.h>
 
 #define SHM_SIZE_KEY 3000
 #define SHM_BUFF_KEY 4000
@@ -20,7 +21,7 @@
 
 
 int *memsizeAddr, *buff;
-int full, empty, mutex, buffid, memsizeid;
+int full, empty, mutex, buffid, memsizeid, buffIter;
 
 /* arg for semctl system calls. */
 union Semun
@@ -32,14 +33,16 @@ union Semun
     void *__pad;
 };
 
-void Down(int sem);
-void Up(int sem);
+void Down(int* sem);
+void Up(int* sem);
 void Init(int buffsize);
 int* InitBuff(int memsize);
 int CreateSem(int semkey);
 void DestroySem(int sem);
 void FreeResources();
 void SignalHandler(int signum);
+int ProduceItem();
+void InsertItem(int item);
 
 int main(){
     int buffsize;
@@ -64,13 +67,23 @@ int main(){
 
     signal(SIGINT, SignalHandler);
 
+    while(1)
+    {
+        int item = ProduceItem();      /* generate something to put in buffer */
+        Down(&empty);                  /* decrement empty count */
+        Down(&mutex);                  /* enter critical region */
+        InsertItem(item);              /* put new item in buffer */
+        Up(&mutex);                    /* leave critical region */
+        Up(&full);                     /* increment count of full slots */
+    }
+
     FreeResources();
 
     return 0;
 }
 
 
-void Down(int sem)
+void Down(int* sem)
 {
     struct sembuf p_op;
 
@@ -85,7 +98,7 @@ void Down(int sem)
     }
 }
 
-void Up(int sem)
+void Up(int* sem)
 {
     struct sembuf v_op;
 
@@ -178,4 +191,18 @@ void SignalHandler(int signum)
     printf("\n\nProducer: terminating...\n");
     FreeResources();
     exit(0);
+}
+
+int ProduceItem()
+{
+    printf("\n\nProducer: generating something to put in buffer...\n");
+    srand(time(0));
+    return rand();
+}
+
+void InsertItem(int item)
+{
+    buff[buffIter] = item;
+    printf("\n\nProducer: inserted %d in the buffer at location: %d\n", item, buffIter);
+    buffIter = (buffIter+1)%BUFSIZ;
 }

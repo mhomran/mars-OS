@@ -54,9 +54,9 @@ int main(){
 
     signal(SIGINT, SignalHandler);
 
-    while(true)
+    while(1)
     {
-        
+
     }
 
     return 0;
