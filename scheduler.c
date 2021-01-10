@@ -149,6 +149,7 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
         }
 
+	int totalTime = 0, idleTime = 0;
         int curTime = -1;
         while (nproc)
         {
@@ -156,6 +157,7 @@ int main(int argc, char *argv[])
                 if (getClk() == curTime)
                         continue;
                 curTime = getClk();
+		totalTime++;
                 if (procGenFinished == 0)
                         down(semSchedGen);
                 if (running != NULL)
@@ -180,6 +182,10 @@ int main(int argc, char *argv[])
                                 break;
                         }
                 }
+		else if (!running) {
+			idleTime++;
+			printf("current time is %d and idle time is %d\n", getClk(), idleTime);
+			}
         }
 
         // upon termination release the clock resources.
@@ -219,7 +225,9 @@ int main(int argc, char *argv[])
 
         stdDev = sqrt(stdDev);
 
-        fprintf(outputFile, "CPU utilization = 100%% \n");
+	float cpUtilization = (totalTime - idleTime+1) / (float)totalTime * 100;	
+	printf("total is %d, idle is %d\n", totalTime, idleTime);
+        fprintf(outputFile, "CPU utilization = %g %% \n", round(cpUtilization * 100.0) / 100.0);
         fprintf(outputFile, "avg WTA: %g\navgWaiting:%g\nstd WTA:%g\n", round(avgWTA * 100.0) / 100.0, round(avgWaiting * 100.0) / 100.0, round(stdDev * 100.0) / 100.0);
 
 #ifdef DEBUG

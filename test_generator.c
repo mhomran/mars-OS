@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     srand(time(null));
     //fprintf(pFile,"%d\n",no);
     fprintf(pFile, "#id arrival runtime priority memorysize\n");
-    pData.arrivaltime = 1;
+    pData.arrivaltime = 0;
 
     int limit = 1024 / no;
     for (int i = 1; i <= no; i++)
