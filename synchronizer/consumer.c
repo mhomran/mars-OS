@@ -5,7 +5,7 @@
 #include <sys/msg.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-#include <signal.h> 
+#include <signal.h>
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
@@ -17,25 +17,27 @@
 #define FULL_SEM_KEY 300
 #define EMPTY_SEM_KEY 400
 #define MUTEX_SEM_KEY 500
+#define BUFFSIZE 3
 
 int *memsizeAddr, *buff;
-int full, empty, mutex, buffid, memsizeid, buffIter, buffsize;
+int full, empty, mutex, buffid, memsizeid, buffIter; //, buffsize;
 
 /* arg for semctl system calls. */
 union Semun
 {
-    int val;               /* value for SETVAL */
-    struct semid_ds *buf;  /* buffer for IPC_STAT & IPC_SET */
-    ushort *array;         /* array for GETALL & SETALL */
-    struct seminfo *__buf; /* buffer for IPC_INFO */
-    void *__pad;
+  int val;               /* value for SETVAL */
+  struct semid_ds *buf;  /* buffer for IPC_STAT & IPC_SET */
+  ushort *array;         /* array for GETALL & SETALL */
+  struct seminfo *__buf; /* buffer for IPC_INFO */
+  void *__pad;
 };
 
 void Down(int sem);
 void Up(int sem);
 int Init();
-int* InitBuff(int memsize);
+int *InitBuff(int memsize);
 int CreateSem(int semkey);
+int GetSem(int semkey);
 void DestroySem(int sem);
 void FreeResources();
 void SignalHandler(int signum);
@@ -43,39 +45,37 @@ int RemoverItem();
 void ConsumeItem(int item);
 void InitSem(int sem, int value);
 
-int main(){
-	int memsize;
+int main()
+{
+  int memsize;
 
-	/*Read buffer size from producer*/
-	buffsize = Init();
-	memsize = buffsize*sizeof(int);
+  /*buffer size in bytes*/
+  memsize = BUFFSIZE * sizeof(int);
 
-	/*Initialize the buffer*/
-	buff = InitBuff(memsize);
+  /*Initialize the buffer*/
+  buff = InitBuff(memsize);
 
-	/*Create full, empty, and mutex semaphores*/
-	full = CreateSem(FULL_SEM_KEY);
-	empty = CreateSem(EMPTY_SEM_KEY);
-	mutex = CreateSem(MUTEX_SEM_KEY);
+  /*Get full, empty, and mutex semaphores if they exist and wait until a producer creates them if not*/
+  full = GetSem(FULL_SEM_KEY);
+  empty = GetSem(EMPTY_SEM_KEY);
+  mutex = GetSem(MUTEX_SEM_KEY);
 
-	/*Initialize the semaphores*/
-	InitSem(full, 0);
-	InitSem(empty, buffsize);
-	InitSem(mutex, 1);
 
-	/*Bind the SIGINT signal handler*/
-	signal(SIGINT, SignalHandler);
+  /*Bind the SIGINT signal handler*/
+  signal(SIGINT, SignalHandler);
 
-	while(1){
-		Down(full);                   /* decrement full count */
-		Down(mutex);                  /* enter critical region */
-		int item = RemoverItem();     /* take item from buffer */
-		Up(mutex);                    /* leave critical region */
-		Up(empty);                    /* increment count of empty slots */
-		ConsumeItem(item);
-	}
+  while (1)
+  {
+    Down(full);               /* decrement full count */
+    Down(mutex);              /* enter critical region */
+    int item = RemoverItem(); /* take item from buffer */
+    Up(mutex);                /* leave critical region */
+    Up(empty);                /* increment count of empty slots */
+    ConsumeItem(item);
+    sleep(10);
+  }
 
-	return 0;
+  return 0;
 }
 
 /**
@@ -85,16 +85,17 @@ int main(){
  */
 void Down(int sem)
 {
-	struct sembuf p_op;
+  struct sembuf p_op;
 
-	p_op.sem_num = 0;
-	p_op.sem_op = -1;
-	p_op.sem_flg = !IPC_NOWAIT;
+  p_op.sem_num = 0;
+  p_op.sem_op = -1;
+  p_op.sem_flg = !IPC_NOWAIT;
 
-	if (semop(sem, &p_op, 1) == -1){
-		perror("\n\nConsumer: Error in down()\n");
-		exit(-1);
-	}
+  if (semop(sem, &p_op, 1) == -1)
+  {
+    perror("\n\nConsumer: Error in down()\n");
+    exit(-1);
+  }
 }
 
 /**
@@ -104,16 +105,17 @@ void Down(int sem)
  */
 void Up(int sem)
 {
-	struct sembuf v_op;
+  struct sembuf v_op;
 
-	v_op.sem_num = 0;
-	v_op.sem_op = 1;
-	v_op.sem_flg = !IPC_NOWAIT;
+  v_op.sem_num = 0;
+  v_op.sem_op = 1;
+  v_op.sem_flg = !IPC_NOWAIT;
 
-	if (semop(sem, &v_op, 1) == -1){
-		perror("\n\nConsumer: Error in up()\n");
-		exit(-1);
-	}
+  if (semop(sem, &v_op, 1) == -1)
+  {
+    perror("\n\nConsumer: Error in up()\n");
+    exit(-1);
+  }
 }
 
 /**
@@ -121,22 +123,22 @@ void Up(int sem)
  * 
  * @return int 
  */
-int Init()
-{
-	while ((memsizeid = shmget(SHM_SIZE_KEY, sizeof(int), 0644)) == -1){
-		perror("\n\nConsumer: Shared memory for buffer size is not found, please run the producer\n");
-		sleep(1);
-	}
-	
-	memsizeAddr = (int *)shmat(memsizeid, (void *)0, 0);
-	if (memsizeAddr == -1){
-		perror("\n\nConsumer: Error in attach the for buffer size shared memory\n");
-		exit(-1);
-	}
-	
-	int buffsize = *memsizeAddr;
-	return buffsize;
-}
+// int Init()
+// {
+// 	while ((memsizeid = shmget(SHM_SIZE_KEY, sizeof(int), 0644)) == -1){
+// 		perror("\n\nConsumer: Shared memory for buffer size is not found, please run the producer\n");
+// 		sleep(1);
+// 	}
+
+// 	memsizeAddr = (int *)shmat(memsizeid, (void *)0, 0);
+// 	if (memsizeAddr == -1){
+// 		perror("\n\nConsumer: Error in attach the for buffer size shared memory\n");
+// 		exit(-1);
+// 	}
+
+// 	int buffsize = *memsizeAddr;
+// 	return buffsize;
+// }
 
 /**
  * @brief Get the shared memory buffer
@@ -144,25 +146,28 @@ int Init()
  * @param memsize 
  * @return int* 
  */
-int* InitBuff(int memsize)
+int *InitBuff(int memsize)
 {
-	buffid = shmget(SHM_BUFF_KEY, memsize, IPC_CREAT|0644);
-	if (buffid == -1){
-		perror("\n\nConsumer: Error in create the shared memory for buffer size\n");
-		exit(-1);
-	}
-	else printf("\n\nConsumer: Buffer id: %d\n", buffid);
-	
-	int* buff;
-	buff = (int *)shmat(buffid, (void *)0, 0);
-	if (buff == -1){
-		perror("\n\nConsumer: Error in attach the for buffer\n");
-		exit(-1);
-	}
-	else printf("\n\nConsumer: Buffer attached successfuly\n");
+  buffid = shmget(SHM_BUFF_KEY, memsize, IPC_CREAT | 0644);
+  if (buffid == -1)
+  {
+    perror("\n\nConsumer: Error in create the shared memory for buffer size\n");
+    exit(-1);
+  }
+  else
+    printf("\n\nConsumer: Buffer id: %d\n", buffid);
 
-	return buff;
-    
+  int *buff;
+  buff = (int *)shmat(buffid, (void *)0, 0);
+  if (buff == -1)
+  {
+    perror("\n\nConsumer: Error in attach the for buffer\n");
+    exit(-1);
+  }
+  else
+    printf("\n\nConsumer: Buffer attached successfuly\n");
+
+  return buff;
 }
 
 /**
@@ -171,14 +176,26 @@ int* InitBuff(int memsize)
  * @param semkey 
  * @return int 
  */
-int CreateSem(int semkey)
+// int CreateSem(int semkey)
+// {
+// 	int sem = semget(semkey, 1, 0666 | IPC_CREAT);
+// 	if(sem == -1){
+// 		perror("\n\nConsumer: Error in create sem\n");
+// 		exit(-1);
+// 	}
+// 	return sem;
+// }
+
+int GetSem(int semkey)
 {
-	int sem = semget(semkey, 1, 0666 | IPC_CREAT);
-	if(sem == -1){
-		perror("\n\nConsumer: Error in create sem\n");
-		exit(-1);
-	}
-	return sem;
+  int sem = -1;
+  while (sem == -1)
+  {
+    printf("Wait until a producer is created\n");
+    sleep(1);
+    sem = semget(semkey, 1, 0666);
+  }
+  return sem;
 }
 
 /**
@@ -188,10 +205,11 @@ int CreateSem(int semkey)
  */
 void DestroySem(int sem)
 {
-	if(semctl(sem, 0, IPC_RMID) == -1){
-		perror("\n\nConsumer: Error in destroy sem\n");
-		exit(-1);
-	}
+  if (semctl(sem, 0, IPC_RMID) == -1)
+  {
+    perror("\n\nConsumer: Error in destroy sem\n");
+    exit(-1);
+  }
 }
 
 /**
@@ -200,15 +218,15 @@ void DestroySem(int sem)
  */
 void FreeResources()
 {
-	shmdt((void*)buff);
-	shmdt((void*)memsizeAddr);
+  shmdt((void *)buff);
+  shmdt((void *)memsizeAddr);
 
-	DestroySem(full);
-	DestroySem(empty);
-	DestroySem(mutex);
+  DestroySem(full);
+  DestroySem(empty);
+  DestroySem(mutex);
 
-	shmctl(memsizeid, IPC_RMID, NULL);
-	shmctl(buffid, IPC_RMID, NULL);
+  shmctl(memsizeid, IPC_RMID, NULL);
+  shmctl(buffid, IPC_RMID, NULL);
 }
 
 /**
@@ -218,9 +236,9 @@ void FreeResources()
  */
 void SignalHandler(int signum)
 {
-	printf("\n\nConsumer: terminating...\n");
-	FreeResources();
-	exit(0);
+  printf("\n\nConsumer: terminating...\n");
+  FreeResources();
+  exit(0);
 }
 
 /**
@@ -230,11 +248,11 @@ void SignalHandler(int signum)
  */
 int RemoverItem()
 {
-	int item;
-	item = buff[buffIter];
-	printf("\n\nConsumer: removed item from buffer\n");
-	buffIter = (buffIter+1)%buffsize;
-	return item;
+  int item;
+  item = buff[buffIter];
+  printf("\n\nConsumer: removed item from buffer index %d\n", buffIter);
+  buffIter = (buffIter + 1) % BUFFSIZE;
+  return item;
 }
 
 /**
@@ -244,7 +262,7 @@ int RemoverItem()
  */
 void ConsumeItem(int item)
 {
-    	printf("\n\nConsumer: consumed item: %d\n", item);
+  printf("\n\nConsumer: consumed item: %d\n", item);
 }
 
 /**
@@ -255,10 +273,11 @@ void ConsumeItem(int item)
  */
 void InitSem(int sem, int value)
 {
-	union Semun semun;
-	semun.val = value; /* initial value of the semaphore, Binary semaphore */
-	if (semctl(sem, 0, SETVAL, semun) == -1){
-		perror("\n\nConsumer: Error in initializing semaphore\n");
-		exit(-1);
-	}
+  union Semun semun;
+  semun.val = value; /* initial value of the semaphore, Binary semaphore */
+  if (semctl(sem, 0, SETVAL, semun) == -1)
+  {
+    perror("\n\nConsumer: Error in initializing semaphore\n");
+    exit(-1);
+  }
 }
