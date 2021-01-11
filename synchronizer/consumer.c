@@ -14,13 +14,16 @@
 
 #define SHM_SIZE_KEY 3000
 #define SHM_BUFF_KEY 4000
+#define SHM_READ_INDEX_KEY 5000
+#define SHM_WRITE_INDEX_KEY 6000
 #define FULL_SEM_KEY 300
 #define EMPTY_SEM_KEY 400
 #define MUTEX_SEM_KEY 500
 #define BUFFSIZE 3
 
-int *memsizeAddr, *buff;
-int full, empty, mutex, buffid, memsizeid, buffIter; //, buffsize;
+
+int *memsizeAddr, *buff, *readIndex, *writeIndex;
+int full, empty, mutex, buffid, readIndexId, writeIndexId; //, buffsize;
 
 /* arg for semctl system calls. */
 union Semun
@@ -34,7 +37,7 @@ union Semun
 
 void Down(int sem);
 void Up(int sem);
-int Init();
+void InitIndices();
 int *InitBuff(int memsize);
 int CreateSem(int semkey);
 int GetSem(int semkey);
@@ -44,6 +47,7 @@ void SignalHandler(int signum);
 int RemoverItem();
 void ConsumeItem(int item);
 void InitSem(int sem, int value);
+
 
 int main()
 {
@@ -60,6 +64,7 @@ int main()
   empty = GetSem(EMPTY_SEM_KEY);
   mutex = GetSem(MUTEX_SEM_KEY);
 
+  InitIndices();
 
   /*Bind the SIGINT signal handler*/
   signal(SIGINT, SignalHandler);
@@ -119,26 +124,27 @@ void Up(int sem)
 }
 
 /**
- * @brief Create or get the shared memory for passing buffer size
+ * @brief Get indices for reading and writing in the buffer
  * 
- * @return int 
  */
-// int Init()
-// {
-// 	while ((memsizeid = shmget(SHM_SIZE_KEY, sizeof(int), 0644)) == -1){
-// 		perror("\n\nConsumer: Shared memory for buffer size is not found, please run the producer\n");
-// 		sleep(1);
-// 	}
+void InitIndices()
+{
+	readIndexId = shmget(SHM_READ_INDEX_KEY, sizeof(int), 0644);
+  writeIndexId = shmget(SHM_WRITE_INDEX_KEY, sizeof(int), 0644);
+  
+	if (readIndexId == -1 || writeIndexId == -1){
+		perror("\n\nConsumer: Error in getting the shared memory for indices\n"); // somehow 
+		exit(-1);
+	}
 
-// 	memsizeAddr = (int *)shmat(memsizeid, (void *)0, 0);
-// 	if (memsizeAddr == -1){
-// 		perror("\n\nConsumer: Error in attach the for buffer size shared memory\n");
-// 		exit(-1);
-// 	}
+	readIndex = (int *)shmat(readIndexId, (void *)0, 0);
+  writeIndex = (int *)shmat(writeIndexId, (void*) 0, 0);
 
-// 	int buffsize = *memsizeAddr;
-// 	return buffsize;
-// }
+	if (readIndex == (int *)-1 || writeIndex == (int *)-1){
+		perror("\n\nProducer: Error in attach the for indices shared memory\n");
+		exit(-1);
+	}
+}
 
 /**
  * @brief Get the shared memory buffer
@@ -149,7 +155,7 @@ void Up(int sem)
 int *InitBuff(int memsize)
 {
   buffid = shmget(SHM_BUFF_KEY, memsize, IPC_CREAT | 0644);
-  if (buffid == -1)
+  if (buffid == (int)-1)
   {
     perror("\n\nConsumer: Error in create the shared memory for buffer size\n");
     exit(-1);
@@ -159,7 +165,7 @@ int *InitBuff(int memsize)
 
   int *buff;
   buff = (int *)shmat(buffid, (void *)0, 0);
-  if (buff == -1)
+  if (buff == (int *)-1)
   {
     perror("\n\nConsumer: Error in attach the for buffer\n");
     exit(-1);
@@ -170,25 +176,9 @@ int *InitBuff(int memsize)
   return buff;
 }
 
-/**
- * @brief Create a Sem object
- * 
- * @param semkey 
- * @return int 
- */
-// int CreateSem(int semkey)
-// {
-// 	int sem = semget(semkey, 1, 0666 | IPC_CREAT);
-// 	if(sem == -1){
-// 		perror("\n\nConsumer: Error in create sem\n");
-// 		exit(-1);
-// 	}
-// 	return sem;
-// }
-
 int GetSem(int semkey)
 {
-  int sem = -1;
+  int sem = semget(semkey, 1, 0666);
   while (sem == -1)
   {
     printf("Wait until a producer is created\n");
@@ -220,12 +210,17 @@ void FreeResources()
 {
   shmdt((void *)buff);
   shmdt((void *)memsizeAddr);
+  shmdt((void *) readIndex);
+  shmdt((void *) writeIndex);
 
   DestroySem(full);
   DestroySem(empty);
   DestroySem(mutex);
 
-  shmctl(memsizeid, IPC_RMID, NULL);
+  
+  shmctl(readIndexId, IPC_RMID, NULL);
+  shmctl(writeIndexId, IPC_RMID, NULL);
+  shmctl(buffid, IPC_RMID, NULL);
   shmctl(buffid, IPC_RMID, NULL);
 }
 
@@ -249,9 +244,9 @@ void SignalHandler(int signum)
 int RemoverItem()
 {
   int item;
-  item = buff[buffIter];
-  printf("\n\nConsumer: removed item from buffer index %d\n", buffIter);
-  buffIter = (buffIter + 1) % BUFFSIZE;
+  item = buff[*readIndex];
+  printf("\n\nConsumer: removed item from buffer index %d\n", *readIndex);
+  *readIndex = (*readIndex + 1) % BUFFSIZE;
   return item;
 }
 

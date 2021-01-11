@@ -23,7 +23,7 @@
 #define BUFFSIZE 3
 
 int *memsizeAddr, *buff, *readIndex, *writeIndex;
-int full, empty, mutex, buffid, memsizeid, buffIter, value; //, buffsize;
+int full, empty, mutex, buffid, readIndexId, writeIndexId, value; //, buffsize;
 
 /* arg for semctl system calls. */
 union Semun
@@ -37,7 +37,7 @@ union Semun
 
 void Down(int sem);
 void Up(int sem);
-void Init();
+void InitIndices();
 int *InitBuff(int memsize);
 int CreateSem(int semkey, int value);
 void DestroySem(int sem);
@@ -52,6 +52,9 @@ int main()
   int memsize;
 
   memsize = BUFFSIZE * sizeof(int);
+
+  // initialize read and write indices
+  InitIndices();
 
   /*Initialize the buffer*/
   buff = InitBuff(memsize);
@@ -72,6 +75,7 @@ int main()
     InsertItem(item);         /* put new item in buffer */
     Up(mutex);                /* leave critical region */
     Up(full);                 /* increment count of full slots */
+    sleep(10);
   }
 
   FreeResources();
@@ -122,21 +126,33 @@ void Up(int sem)
 /**
  * @brief Create or get the shared memory for passing reading and writing indices
  */
-void Init()
+void InitIndices()
 {
-	memsizeid = shmget(SHM_SIZE_KEY, sizeof(int), IPC_CREAT|0644);
-	if (memsizeid == -1){
-		perror("\n\nProducer: Error in create the shared memory for buffer size\n");
+	// check if they already exist
+  int readInitalized = shmget(SHM_READ_INDEX_KEY, sizeof(int), 0644);
+	int writeInitalized = shmget(SHM_WRITE_INDEX_KEY, sizeof(int), 0644);
+	
+  readIndexId = shmget(SHM_READ_INDEX_KEY, sizeof(int), IPC_CREAT|0644);
+  writeIndexId = shmget(SHM_WRITE_INDEX_KEY, sizeof(int), IPC_CREAT|0644);
+  
+	if (readIndexId == -1 || writeIndexId == -1){
+		perror("\n\nProducer: Error in create the shared memory for indices\n");
 		exit(-1);
 	}
 
-	memsizeAddr = (int *)shmat(memsizeid, (void *)0, 0);
-	if (memsizeAddr == -1){
-		perror("\n\nProducer: Error in attach the for buffer size shared memory\n");
+	readIndex = (int *)shmat(readIndexId, (void *)0, 0);
+  writeIndex = (int *)shmat(writeIndexId, (void*) 0, 0);
+
+	if (readIndex == (int *)-1 || writeIndex == (int *)-1){
+		perror("\n\nProducer: Error in attach the for indices shared memory\n");
 		exit(-1);
 	}
 
-	*memsizeAddr = buffsize;
+  // if this producer created them (first producer) initialize them to 0
+	if (readInitalized == -1)
+    *readIndex = 0;
+  if (writeInitalized == -1)
+    *writeIndex = 0;
 }
 
 /**
@@ -158,7 +174,7 @@ int *InitBuff(int memsize)
 
   int *buff;
   buff = (int *)shmat(buffid, (void *)0, 0);
-  if (buff == -1)
+  if (buff == (int *)-1)
   {
     perror("\n\nProducer: Error in attach the for buffer\n");
     exit(-1);
@@ -214,7 +230,8 @@ void FreeResources()
 {
   shmdt((void *)buff);
   shmdt((void *)memsizeAddr);
-
+  shmdt((void *) readIndex);
+  shmdt((void *) writeIndex);
 }
 
 /**
@@ -240,8 +257,6 @@ int ProduceItem()
   int returnValue = value;
   value++;
   return returnValue;
-  // srand(time(0));
-  // return rand() % 11;
 }
 
 /**
@@ -251,9 +266,9 @@ int ProduceItem()
  */
 void InsertItem(int item)
 {
-  buff[buffIter] = item;
-  printf("\n\nProducer: inserted %d in the buffer at location: %d\n", item, buffIter);
-  buffIter = (buffIter + 1) % BUFFSIZE;
+  buff[*writeIndex] = item;
+  printf("\n\nProducer: inserted %d in the buffer at location: %d\n", item, *writeIndex);
+  *writeIndex = (*writeIndex + 1) % BUFFSIZE;
 }
 
 /**
