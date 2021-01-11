@@ -20,19 +20,19 @@
 #define FULL_SEM_KEY 300
 #define EMPTY_SEM_KEY 400
 #define MUTEX_SEM_KEY 500
-#define BUFFSIZE 3
+#define BUFFSIZE 5
 
-int *memsizeAddr, *buff, *readIndex, *writeIndex;
-int full, empty, mutex, buffid, readIndexId, writeIndexId, value; //, buffsize;
+int *memSizeAddr, *buff, *readIndex, *writeIndex;
+int full, empty, mutex, buffId, readIndexId, writeIndexId, value;
 
 /* arg for semctl system calls. */
 union Semun
 {
-  int val;               /* value for SETVAL */
-  struct semid_ds *buf;  /* buffer for IPC_STAT & IPC_SET */
-  ushort *array;         /* array for GETALL & SETALL */
-  struct seminfo *__buf; /* buffer for IPC_INFO */
-  void *__pad;
+	int val;               /* value for SETVAL */
+	struct semid_ds *buf;  /* buffer for IPC_STAT & IPC_SET */
+	ushort *array;         /* array for GETALL & SETALL */
+	struct seminfo *__buf; /* buffer for IPC_INFO */
+	void *__pad;
 };
 
 void Down(int sem);
@@ -49,78 +49,76 @@ void InitSem(int sem, int value);
 
 int main()
 {
-  int memsize;
+	int memSize;
 
-  memsize = BUFFSIZE * sizeof(int);
+	// Memory size in bytes
+	memSize = BUFFSIZE * sizeof(int);
 
-  // initialize read and write indices
-  InitIndices();
+	// Initialize read and write indices
+	InitIndices();
 
-  /*Initialize the buffer*/
-  buff = InitBuff(memsize);
+	/* Initialize the buffer */
+	buff = InitBuff(memSize);
 
-  /*Create full, empty, and mutex semaphores or get them if they already exist*/
-  full = CreateSem(FULL_SEM_KEY, 0);
-  empty = CreateSem(EMPTY_SEM_KEY, BUFFSIZE);
-  mutex = CreateSem(MUTEX_SEM_KEY, 1);
+	/* Create full, empty, and mutex semaphores or get them if they already exist */
+	full = CreateSem(FULL_SEM_KEY, 0);
+	empty = CreateSem(EMPTY_SEM_KEY, BUFFSIZE);
+	mutex = CreateSem(MUTEX_SEM_KEY, 1);
 
-  /*Bind the SIGINT signal handler*/
-  signal(SIGINT, SignalHandler);
+	/* Bind the SIGINT signal handler */
+	signal(SIGINT, SignalHandler);
 
-  while (1)
-  {
-    int item = ProduceItem(); /* generate something to put in buffer */
-    Down(empty);              /* decrement empty count */
-    Down(mutex);              /* enter critical region */
-    InsertItem(item);         /* put new item in buffer */
-    Up(mutex);                /* leave critical region */
-    Up(full);                 /* increment count of full slots */
-    sleep(10);
-  }
+	while (1) {
+		int item = ProduceItem(); /* generate something to put in buffer */
+		Down(empty);              /* decrement empty count */
+		Down(mutex);              /* enter critical region */
+		InsertItem(item);         /* put new item in buffer */
+		Up(mutex);                /* leave critical region */
+		Up(full);                 /* increment count of full slots */
+		sleep(10);		  /* for debugging */
+	}
 
-  FreeResources();
+	FreeResources();
 
-  return 0;
+	return 0;
 }
 
 /**
- * @brief decrease semaphore by 1
+ * @brief Decrease semaphore by 1
  * 
- * @param sem semaphore id
+ * @param sem Semaphore id
  */
 void Down(int sem)
 {
-  struct sembuf p_op;
+	struct sembuf p_op;
 
-  p_op.sem_num = 0;
-  p_op.sem_op = -1;
-  p_op.sem_flg = !IPC_NOWAIT;
+	p_op.sem_num = 0;
+	p_op.sem_op = -1;
+	p_op.sem_flg = !IPC_NOWAIT;
 
-  if (semop(sem, &p_op, 1) == -1)
-  {
-    perror("\n\nProducer: Error in down()\n");
-    exit(-1);
-  }
+	if (semop(sem, &p_op, 1) == -1)	{
+		perror("\n\nProducer: Error in down()\n");
+		exit(-1);
+	}
 }
 
 /**
- * @brief increase semaphore by 1
+ * @brief Increase semaphore by 1
  * 
- * @param sem semaphore id
+ * @param sem Semaphore id
  */
 void Up(int sem)
 {
-  struct sembuf v_op;
+	struct sembuf v_op;
 
-  v_op.sem_num = 0;
-  v_op.sem_op = 1;
-  v_op.sem_flg = !IPC_NOWAIT;
+	v_op.sem_num = 0;
+	v_op.sem_op = 1;
+	v_op.sem_flg = !IPC_NOWAIT;
 
-  if (semop(sem, &v_op, 1) == -1)
-  {
-    perror("\n\nProducer: Error in up()\n");
-    exit(-1);
-  }
+	if (semop(sem, &v_op, 1) == -1) {
+		perror("\n\nProducer: Error in up()\n");
+		exit(-1);
+	}
 }
 
 /**
@@ -128,84 +126,85 @@ void Up(int sem)
  */
 void InitIndices()
 {
-	// check if they already exist
-  int readInitalized = shmget(SHM_READ_INDEX_KEY, sizeof(int), 0644);
+	// Check if they already exist
+	int readInitalized = shmget(SHM_READ_INDEX_KEY, sizeof(int), 0644);
 	int writeInitalized = shmget(SHM_WRITE_INDEX_KEY, sizeof(int), 0644);
 	
-  readIndexId = shmget(SHM_READ_INDEX_KEY, sizeof(int), IPC_CREAT|0644);
-  writeIndexId = shmget(SHM_WRITE_INDEX_KEY, sizeof(int), IPC_CREAT|0644);
-  
-	if (readIndexId == -1 || writeIndexId == -1){
+	// Get or create shared memories for indices
+	readIndexId = shmget(SHM_READ_INDEX_KEY, sizeof(int), IPC_CREAT|0644);
+	writeIndexId = shmget(SHM_WRITE_INDEX_KEY, sizeof(int), IPC_CREAT|0644);
+
+	if (readIndexId == -1 || writeIndexId == -1) {
 		perror("\n\nProducer: Error in create the shared memory for indices\n");
 		exit(-1);
 	}
 
+	// Attach this producer to the shared memories
 	readIndex = (int *)shmat(readIndexId, (void *)0, 0);
-  writeIndex = (int *)shmat(writeIndexId, (void*) 0, 0);
+	writeIndex = (int *)shmat(writeIndexId, (void*) 0, 0);
 
-	if (readIndex == (int *)-1 || writeIndex == (int *)-1){
+	if (readIndex == (int *)-1 || writeIndex == (int *)-1) {
 		perror("\n\nProducer: Error in attach the for indices shared memory\n");
 		exit(-1);
 	}
 
-  // if this producer created them (first producer) initialize them to 0
-	if (readInitalized == -1)
-    *readIndex = 0;
-  if (writeInitalized == -1)
-    *writeIndex = 0;
+	// If this producer created them (first producer) initialize them to 0
+	if (readInitalized == -1) *readIndex = 0;
+	if (writeInitalized == -1) *writeIndex = 0;
 }
 
 /**
  * @brief Create the shared memory buffer
  * 
- * @param memsize 
+ * @param memSize 
  * @return int* 
  */
-int *InitBuff(int memsize)
+int *InitBuff(int memSize)
 {
-  buffid = shmget(SHM_BUFF_KEY, memsize, IPC_CREAT | 0644);
-  if (buffid == -1)
-  {
-    perror("\n\nProducer: Error in create the shared memory for buffer size\n");
-    exit(-1);
-  }
-  else
-    printf("\n\nProducer: Buffer id: %d\n", buffid);
+	// Create or get shared memory for buffer
+	buffId = shmget(SHM_BUFF_KEY, memSize, IPC_CREAT | 0644);
+	if (buffId == -1) {
+		perror("\n\nProducer: Error in create the shared memory for buffer size\n");
+		exit(-1);
+	}
+	else printf("\n\nProducer: Buffer id: %d\n", buffId);
 
-  int *buff;
-  buff = (int *)shmat(buffid, (void *)0, 0);
-  if (buff == (int *)-1)
-  {
-    perror("\n\nProducer: Error in attach the for buffer\n");
-    exit(-1);
-  }
-  else
-    printf("\n\nProducer: Buffer attached successfuly\n");
+	// Attach to the buffer
+	int *buff;
+	buff = (int *)shmat(buffId, (void *)0, 0);
+	
+	if (buff == (int *)-1) {
+		perror("\n\nProducer: Error in attach the for buffer\n");
+		exit(-1);
+	}
+	else printf("\n\nProducer: Buffer attached successfuly\n");
 
-  return buff;
+	return buff;
 }
 
 /**
- * @brief Create a Sem object
+ * @brief Create a Sem object and initalize it
  * 
- * @param semkey 
+ * @param semkey	key of the semphore 
+ * @param value		initial value for the semaphore
  * @return int 
  */
 int CreateSem(int semkey, int value)
 {
-  int initialized = semget(semkey, 1, 0666);
-  
-  int sem = semget(semkey, 1, 0666 | IPC_CREAT);
-  if (sem == -1)
-  {
-    perror("\n\nProducer: Error in create sem\n");
-    exit(-1);
-  }
+	// Check if it already exists
+	int initialized = semget(semkey, 1, 0666);
 
-  /* If this producer created the semaphore initialize it*/
-  if (initialized == -1) InitSem(sem, value);
+	// Get or create the semaphore
+	int sem = semget(semkey, 1, 0666 | IPC_CREAT);
+	if (sem == -1) {
+		perror("\n\nProducer: Error in create sem\n");
+		exit(-1);
+	}
 
-  return sem;
+	// If this producer created the semaphore initialize it
+	if (initialized == -1) InitSem(sem, value);
+
+	return sem;
 }
 
 /**
@@ -215,23 +214,24 @@ int CreateSem(int semkey, int value)
  */
 void DestroySem(int sem)
 {
-  if (semctl(sem, 0, IPC_RMID) == -1)
-  {
-    perror("\n\nProducer: Error in destroy sem\n");
-    exit(-1);
-  }
+	if (semctl(sem, 0, IPC_RMID) == -1) {
+		perror("\n\nProducer: Error in destroy sem\n");
+		exit(-1);
+	}
 }
 
 /**
  * @brief Before terminating free the used resources
+ * for the producers this means detaching from shared memories
  * 
  */
 void FreeResources()
 {
-  shmdt((void *)buff);
-  shmdt((void *)memsizeAddr);
-  shmdt((void *) readIndex);
-  shmdt((void *) writeIndex);
+	// Detach from all shared memories
+	shmdt((void *)buff);
+	shmdt((void *)memSizeAddr);
+	shmdt((void *) readIndex);
+	shmdt((void *) writeIndex);
 }
 
 /**
@@ -241,34 +241,38 @@ void FreeResources()
  */
 void SignalHandler(int signum)
 {
-  printf("\n\nProducer: terminating...\n");
-  FreeResources();
-  exit(0);
+	printf("\n\nProducer: terminating...\n");
+	FreeResources();
+	exit(0);
 }
 
 /**
- * @brief Removes one item from shared buffer
+ * @brief Create one item to be inserted in the buffer
  * 
  * @return int 
  */
 int ProduceItem()
 {
-  printf("\n\nProducer: generating something to put in buffer...\n");
-  int returnValue = value;
-  value++;
-  return returnValue;
+	printf("\n\nProducer: generating something to put in buffer...\n");
+	int returnValue = value;
+	value++;
+	return returnValue;
 }
 
 /**
- * @brief Consumes the removed item from the buffer
+ * @brief Insert item in the shared buffer
  * 
  * @param item 
  */
 void InsertItem(int item)
 {
-  buff[*writeIndex] = item;
-  printf("\n\nProducer: inserted %d in the buffer at location: %d\n", item, *writeIndex);
-  *writeIndex = (*writeIndex + 1) % BUFFSIZE;
+	// Insert item in the buffer
+	buff[*writeIndex] = item;
+	
+	printf("\n\nProducer: inserted %d in the buffer at location: %d\n", item, *writeIndex);
+	
+	// Increase write index and wrap if it is more than buffer size
+	*writeIndex = (*writeIndex + 1) % BUFFSIZE;
 }
 
 /**
@@ -279,11 +283,10 @@ void InsertItem(int item)
  */
 void InitSem(int sem, int value)
 {
-  union Semun semun;
-  semun.val = value; /* initial value of the semaphore, Binary semaphore */
-  if (semctl(sem, 0, SETVAL, semun) == -1)
-  {
-    perror("\n\nProducer: Error in initializing semaphore\n");
-    exit(-1);
-  }
+	union Semun semun;
+	semun.val = value; /* Initial value of the semaphore, Binary semaphore */
+	if (semctl(sem, 0, SETVAL, semun) == -1) {
+		perror("\n\nProducer: Error in initializing semaphore\n");
+		exit(-1);
+	}
 }
