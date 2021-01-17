@@ -8,7 +8,7 @@ The synchronizer solves the producer-consumer problem using semaphores and share
 
 <p align="center">
   <a href="" rel="noopener">
- <img src="https://github.com/mhomran/mars-OS/blob/main/demo/system.png" alt="System Visualization"></a>
+ <img src="https://github.com/mhomran/mars-OS/blob/master/demo/system.png" alt="System Visualization"></a>
 </p>
 
 We used the concept of the “tick” in the real OSes. So, we make the scheduler executes every tick which equals to one second. The scheduler supports the follwing algorithms:
@@ -21,7 +21,7 @@ We represented the buddy system by a binary tree with its leaves representing an
 
 <p align="center">
   <a href="" rel="noopener">
- <img src="https://github.com/mhomran/mars-OS/blob/main/demo/buddy.png" alt="System Visualization"></a>
+ <img src="https://github.com/mhomran/mars-OS/blob/master/demo/buddy.png" alt="Buddy Visualization"></a>
 </p>
 
 ## Install <a name = "install"></a>
