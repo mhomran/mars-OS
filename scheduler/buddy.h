@@ -1,7 +1,7 @@
 /**
  * @file buddy.h
  * @author Mohamed Hassanin Mohamed
- * @brief This is a module for the buddy memory mangement system.
+ * @brief This is a module for the buddy memory management system.
  * @version 0.1
  * @date 2021-01-10
  * 

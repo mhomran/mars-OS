@@ -1,7 +1,7 @@
 /**
  * @file buddy.c
  * @author Mohamed Hassanin Mohamed
- * @brief This is a module for the buddy memory mangement system.
+ * @brief This is a module for the buddy memory management system.
  * @version 0.1
  * @date 2021-01-10
  * 
@@ -174,7 +174,7 @@ node *alloc2(node *root, int size)
 
 /**
  * @brief This function used to allocate a piece of memory in the buddy system 
- * memory mangement
+ * memory management
  * 
  * @param size The desired memory size to allocate
  * @return node* a node pointer to the allocated piece of memory
@@ -197,7 +197,7 @@ node *Allocate(int size)
 
 /**
  * @brief utility function to deallocate a piece of memory in the buddy system memory 
- * mangement system.
+ * management system.
  * 
  * @param root a node to the node to deallocate
  * @return uint8_t 0 if the tree is empty, 1 otherwise 
@@ -225,7 +225,7 @@ uint8_t DeallocateUtil(node *root)
 }
 
 /**
- * @brief Deallocate a piece of memory from the buddy system memory mangement system.
+ * @brief Deallocate a piece of memory from the buddy system memory management system.
  * 
  * @param root a node to the memory piece to deallocate.
  */
