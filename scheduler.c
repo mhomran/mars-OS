@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
         float stdDev = 0;
         for (int i = 0; i < numProcesses; i++)
         {
-                stdDev = pow((double)(WTAs[i] - avgWTA), 2);
+                stdDev += pow((double)(WTAs[i] - avgWTA), 2);
         }
 
         stdDev = sqrt(stdDev);
