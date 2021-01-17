@@ -20,7 +20,7 @@ We used the concept of the “tick” in the real OSes. So, we make the schedule
 We represented the buddy system by a binary tree and its leaves represent the allocated parts of the memory.
 <p align="center">
   <a href="" rel="noopener">
- <img src="https://github.com/mhomran/mars-OS/blob/master/demo/buddy.png" alt="Buddy Visualization"></a>
+ <img src="https://github.com/mhomran/mars-OS/raw/master/demo/buddy.png" alt="Buddy Visualization"></a>
 </p>
 
 ## Install <a name = "install"></a>
