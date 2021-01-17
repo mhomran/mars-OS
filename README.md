@@ -1,6 +1,6 @@
 ## About <a name = "about"></a>
 
-This project consists of two parts. The first part is a simulation for the CPU scheduler and the memory manager. The second part is the synchronizer which is a solution for the popular produer-consumer/shared buffer problem.
+This project consists of two parts. The first part is a simulation for the CPU scheduler and the memory manager. The second part is the synchronizer which is a solution for the popular producer-consumer/shared buffer problem.
 
 The scheduler determines an order for the execution of its scheduled processes; it decides which process will run according to a certain data structure that keeps track of the processes in the system and their status with memory allocation capabilities using the buddy memory allocation system.
 
