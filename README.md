@@ -18,10 +18,13 @@ We used the concept of the “tick” in the real OSes. So, we make the schedule
 - Shortest Remaining Time Next (SRTN): The scheduler at any tick chooses the process with the shortest remaining time from the priority queue. This operation has complexity of O(1). At any tick, if a new process arrived with a run time shorter than the running time, it will preempt the running process.
 
 We represented the buddy system by a binary tree and its leaves represent the allocated parts of the memory.
+<<<<<<< HEAD
 
+=======
+>>>>>>> 6b89f1abc71228de62a8da4ab9d3f939fc4f0725
 <p align="center">
   <a href="" rel="noopener">
- <img src="https://github.com/mhomran/mars-OS/blob/master/demo/buddy.png" alt="Buddy Visualization"></a>
+ <img src="https://github.com/mhomran/mars-OS/raw/master/demo/buddy.png" alt="Buddy Visualization"></a>
 </p>
 
 ## Install <a name = "install"></a>
