@@ -17,7 +17,7 @@ We used the concept of the “tick” in the real OSes. So, we make the schedule
 - Non preemptive Highest Priority First (NHPF): The scheduler chooses the process with the highest priority from the priority queue which has a no complexity of O(1). Then this process runs to completion. At every tick if the scheduler sees that there's no running process, then it chooses the one with the highest priority from the priority queue.
 - Shortest Remaining Time Next (SRTN): The scheduler at any tick chooses the process with the shortest remaining time from the priority queue. This operation has complexity of O(1). At any tick, if a new process arrived with a run time shorter than the running time, it will preempt the running process.
 
-We represented the buddy system by a binary tree with its leaves representing an allocated peace of memory.
+We represented the buddy system by a binary tree and its leaves represent the allocated parts of the memory.
 
 <p align="center">
   <a href="" rel="noopener">
