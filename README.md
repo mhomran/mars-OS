@@ -33,6 +33,8 @@ We represented the buddy system by a binary tree and its leaves represent the al
 
 - To compile your project, use the command: `make`
 
+- To generate a random test case in the scheduler run `make generate_test`. You can change it as you want in the `processes.txt` file.
+
 - To run your project:
 
   - For the scheduler use the command: `make run`
